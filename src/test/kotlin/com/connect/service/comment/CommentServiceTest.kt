@@ -7,14 +7,17 @@ import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.extension.ExtendWith
+import org.mockito.ArgumentCaptor
 import org.mockito.InjectMocks
 import org.mockito.Mock
 import org.mockito.Mockito.*
 import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.ArgumentMatchers.any
 import org.mockito.BDDMockito.given
+import org.mockito.Mockito
+import org.springframework.data.repository.findByIdOrNull
 import java.time.LocalDateTime
-
+import java.util.Optional;
 
 @ExtendWith(MockitoExtension::class)
 class CommentServiceTest {
@@ -49,7 +52,7 @@ class CommentServiceTest {
 
             // Mocking (given().willReturn() 사용 - BDD 스타일)
             // findByIdOrNull은 Kotlin 확장 함수라서 약간의 우회 필요
-            `when`(boardRepository.findById(boardId)).thenReturn(java.util.Optional.of(board)) // findById를 직접 모킹
+            `when`(boardRepository.findById(boardId)).thenReturn(Optional.of(board)) // findById를 직접 모킹
 
             // commentRepository.save(any<CommentMst>())에 대한 모킹
             // `any(CommentMst::class.java)`는 Kotlin 클래스를 Mockito `any()`에 전달할 때 사용
@@ -319,5 +322,72 @@ class CommentServiceTest {
             verify(commentRepository, times(1)).findById(commentId)
             verify(commentRepository, times(0)).save(any(CommentMst::class.java))
         }
+    }
+
+    @Test
+    @DisplayName("댓글이 존재하지 않을 경우 IllegalArgumentException을 던진다")
+    fun `댓글이_존재하지_않을_경우_IllegalArgumentException을_던진다`() {
+        // Given
+        val nonExistentCommentId = 999L
+
+        given(commentRepository.findById(nonExistentCommentId)).willReturn(Optional.empty())
+
+        // When & Then
+        val exception = assertThrows<IllegalArgumentException> {
+            commentService.deleteComment(nonExistentCommentId)
+        }
+        assertEquals("댓글을 찾을 수 없습니다: $nonExistentCommentId", exception.message)
+
+        verify(commentRepository, Mockito.times(1)).findById(nonExistentCommentId) // findById가 호출되었는지 검증
+        verify(commentRepository, never()).save(any(CommentMst::class.java))
+        verify(commentRepository, never()).delete(any(CommentMst::class.java))
+    }
+
+    @Test
+    @DisplayName("대댓글이 있는 부모 댓글 삭제 시, 논리적 삭제(isDeleted=true)된다")
+    fun `대댓글이_있는_부모_댓글_삭제시_논리적_삭제`() {
+        // Given
+        val parentCommentId = 1L
+        val boardId = 10L
+        val now = LocalDateTime.now()
+
+        val parentComment = CommentMst(
+            id = parentCommentId,
+            content = "부모 댓글",
+            author = "부모작성자",
+            boardId = boardId,
+            insertDts = now,
+            updateDts = now
+        )
+        val childComment = CommentMst(
+            id = 2L,
+            content = "자식 댓글",
+            author = "자식작성자",
+            boardId = boardId,
+            parentCommentId = parentCommentId,
+            insertDts = now.plusSeconds(1),
+            updateDts = now.plusSeconds(1)
+        )
+
+        given(commentRepository.findById(parentCommentId)).willReturn(Optional.of(parentComment))
+        given(commentRepository.findAllByParentCommentIdOrderByInsertDtsAsc(parentCommentId))
+            .willReturn(listOf(childComment))
+
+        // When
+        commentService.deleteComment(parentCommentId)
+
+        // Then
+        // save 호출 검증을 위해 ArgumentCaptor 사용
+        val commentCaptor = ArgumentCaptor.forClass(CommentMst::class.java)
+        verify(commentRepository, times(1)).save(commentCaptor.capture())
+
+        val savedComment = commentCaptor.value
+        assertNotNull(savedComment)
+        assertEquals(parentCommentId, savedComment.id)
+        assertTrue(savedComment.isDeleted) // isDeleted가 true로 변경되었는지 확인
+
+        verify(commentRepository, never()).delete(any(CommentMst::class.java))
+        // findById가 제대로 호출되었는지 검증
+        verify(commentRepository, times(1)).findById(parentCommentId)
     }
 }
