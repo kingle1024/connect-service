@@ -15,7 +15,6 @@ import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.ArgumentMatchers.any
 import org.mockito.BDDMockito.given
 import org.mockito.Mockito
-import org.springframework.data.repository.findByIdOrNull
 import java.time.LocalDateTime
 import java.util.Optional;
 

@@ -1,5 +1,6 @@
 package com.connect.service.board
 
+import com.connect.service.comment.BaseEntity
 import jakarta.persistence.* // <- 임포트 확인!
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository

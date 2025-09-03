@@ -1,4 +1,4 @@
-package com.connect.service.board
+package com.connect.service.comment
 
 import jakarta.persistence.Column
 import jakarta.persistence.EntityListeners
