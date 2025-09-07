@@ -46,6 +46,12 @@ class ChatRoomService {
         return room.roomLeader == userId
     }
 
+    // 유저별 채팅방 목록 조회 메서드 ---
+    fun getChatRoomsForUser(userId: String): List<ChatRoom> {
+        // 모든 채팅방 중에서 해당 userId가 참여자로 있거나, 방장인 채팅방만 필터링해서 반환해.
+        return chatRooms.values.filter { it.hasParticipant(userId) || it.roomLeader == userId }.toList()
+    }
+
     // 현재 채팅방 목록 확인 (테스트용)
     fun getAllChatRooms(): List<ChatRoom> {
         return chatRooms.values.toList()

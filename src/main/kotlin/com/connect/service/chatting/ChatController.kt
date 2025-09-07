@@ -4,9 +4,11 @@ import org.springframework.messaging.handler.annotation.MessageMapping
 import org.springframework.messaging.handler.annotation.Payload
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor
 import org.springframework.messaging.simp.SimpMessagingTemplate
-import org.springframework.stereotype.Controller
+import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.RestController
+import java.security.Principal
 
-@Controller
+@RestController
 class ChatController(
     private val messagingTemplate: SimpMessagingTemplate, // 메시지 보내는 데 사용해
     private val chatRoomService: ChatRoomService // 채팅방 관리 서비스
@@ -132,5 +134,15 @@ class ChatController(
             messagingTemplate.convertAndSendToUser(kicker, "/queue/errors",
                 "${kickedUser}님을 강퇴하지 못했습니다. 해당 유저가 없거나 문제가 발생했습니다.")
         }
+    }
+
+    @GetMapping("/api/chat/rooms") // HTTP GET 요청을 '/api/chat/rooms' 경로로 받음
+    fun getChatRoomsForUser(principal: Principal): List<ChatRoom> {
+        // principal 객체를 통해 현재 로그인한 사용자의 ID를 가져올 수 있어.
+        // Spring Security가 설정되어 있어야 제대로 작동해!
+        val userId = principal.name // principal.name이 사용자 ID 또는 이메일이라고 가정
+
+        println("유저 ${userId}의 채팅방 목록을 조회합니다.")
+        return chatRoomService.getChatRoomsForUser(userId)
     }
 }
