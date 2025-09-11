@@ -1,59 +1,105 @@
 package com.connect.service.chatting
 
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDateTime
 import java.util.concurrent.ConcurrentHashMap
 
+data class ChatRoomDto(
+    val id: String, // 채팅방 ID
+    val name: String, // 채팅방 이름
+    val leaderId: String, // 방장 ID
+    val participantsCount: Long // 참여자 수를 포함 (채팅방 목록 화면에 표시하기 위함)
+)
+
 @Service
-class ChatRoomService {
+class ChatRoomService (
+    private val chatRoomRepository: ChatRoomRepository,
+    private val roomMembershipRepository: RoomMembershipRepository
+){
     // roomId를 키로 ChatRoom 객체를 저장할 맵
     private val chatRooms: ConcurrentHashMap<String, ChatRoom> = ConcurrentHashMap()
 
-    // 채팅방을 새로 만들고, 만든 사람을 방장으로 등록해
-    fun createChatRoom(roomId: String, roomLeader: String): ChatRoom {
-        val newRoom = ChatRoom(roomId, roomLeader)
-        chatRooms[roomId] = newRoom
-        // 방장을 바로 참여자 목록에 추가해줘
-        newRoom.addParticipant(roomLeader)
-        println("채팅방 '$roomId'가 생성되었고, 방장은 '$roomLeader'님이야!")
-        return newRoom
+    @Transactional // 이 메서드 전체를 하나의 DB 트랜잭션으로 묶음
+    fun addParticipant(roomId: String, userId: String, roomName: String?): Boolean {
+       // 1. ChatRoom 존재 여부 확인 및 생성
+       // findById(roomId)로 방을 찾고, 없으면 orElseGet{} 람다식을 실행하여 새 방을 생성
+       val chatRoom = chatRoomRepository.findById(roomId).orElseGet {
+           // 방이 없으면 새로운 방을 생성하고 초기 정보 설정
+           val newRoom = ChatRoom(
+               roomId = roomId,
+               roomName = roomName ?: "채팅방 $roomId", // 프론트에서 roomName을 보냈다면 사용, 아니면 기본 이름 설정
+               leaderUserId = userId, // 방장을 방을 처음 생성한 유저로 설정
+               createdAt = LocalDateTime.now() // 생성 시간 설정
+           )
+           chatRoomRepository.save(newRoom) // 생성된 새 방을 DB에 저장
+       }
+
+       // 2. RoomMembership 존재 여부 확인 및 생성
+       val membershipId = RoomMembershipId(userId, roomId) // 사용자 ID와 방 ID로 복합 키 생성
+       val exists = roomMembershipRepository.existsById(membershipId) // 해당 유저가 이미 이 방의 멤버인지 DB에서 확인
+
+       if (!exists) { // 아직 멤버가 아니라면
+           val newMembership = RoomMembership(
+               id = membershipId, // 복합 키
+               chatRoom = chatRoom, // 관계 매핑된 ChatRoom 엔티티
+               joinedAt = LocalDateTime.now() // 참여 시간 기록
+           )
+           roomMembershipRepository.save(newMembership) // 새로운 멤버십을 DB에 저장
+           return true // 성공적으로 새로 추가됨을 반환
+       }
+       return false // 이미 존재하는 멤버임을 반환
     }
 
-    // 채팅방 찾기
-    fun findRoomById(roomId: String): ChatRoom? {
-        return chatRooms[roomId]
-    }
-
-    // 채팅방에 유저를 추가하는 기능 (초대 기능에 쓰이겠지?)
-    fun addParticipant(roomId: String, userId: String): Boolean {
-        val room = findRoomById(roomId) ?: return false // 방이 없으면 실패
-        return room.addParticipant(userId)
-    }
-
-    // 채팅방에서 유저를 제거하는 기능 (강퇴 기능에 쓰이겠지?)
+    // 💡 (수정!) 유저가 채팅방에서 나갈 때 호출됩니다. (멤버십 삭제)
+    @Transactional // 이 메서드 전체를 하나의 DB 트랜잭션으로 묶음
     fun removeParticipant(roomId: String, userId: String): Boolean {
-        val room = findRoomById(roomId) ?: return false // 방이 없으면 실패
-        // 방장이 나가려고 하면 특별한 처리 필요 (방장 위임 또는 방 폭파)
-        if (room.roomLeader == userId) {
-            println("경고: 방장은 스스로 강퇴될 수 없어. 방을 닫거나 다른 방장을 지정해야 해.")
-            return false
-        }
-        return room.removeParticipant(userId)
+       val membershipId = RoomMembershipId(userId, roomId) // 멤버십 복합 키 생성
+       val exists = roomMembershipRepository.existsById(membershipId) // 해당 멤버십이 DB에 존재하는지 확인
+
+       if (exists) { // 멤버십이 존재한다면
+           roomMembershipRepository.deleteById(membershipId) // DB에서 해당 멤버십을 삭제
+
+           // 🚨 (옵션) 방에 아무도 없으면 방 자체를 삭제하는 로직
+           val remainingMembers = roomMembershipRepository.countByIdRoomId(roomId) // 해당 방에 남아있는 멤버 수 조회
+           if (remainingMembers == 0L) { // 남은 멤버가 0명이라면 (모두 나갔다면)
+               chatRoomRepository.deleteById(roomId) // 해당 채팅방 자체를 DB에서 삭제
+           }
+           return true // 성공적으로 제거됨을 반환
+       }
+       return false // 멤버십이 없었음을 반환
     }
 
-    // 유저가 해당 방의 방장인지 확인하는 기능
+    @Transactional(readOnly = true) // 데이터 변경 없이 읽기만 하므로 읽기 전용 트랜잭션으로 설정 (성능 최적화)
+    fun getRoomsForUser(userId: String): List<ChatRoomDto> {
+       // 해당 userId를 가진 모든 RoomMembership 엔티티를 DB에서 조회
+       return roomMembershipRepository.findByIdUserId(userId)
+           .map { membership -> // 조회된 각 멤버십에 대해 DTO로 변환
+               val chatRoom = membership.chatRoom // 멤버십에 연결된 ChatRoom 엔티티 가져오기
+               // 해당 방의 현재 참여자 수를 DB에서 조회 (최신 정보)
+               val participantsCount = roomMembershipRepository.countByIdRoomId(chatRoom.roomId)
+               // ChatRoomDto 객체로 변환하여 반환
+               ChatRoomDto(
+                   id = chatRoom.roomId,
+                   name = chatRoom.roomName,
+                   leaderId = chatRoom.leaderUserId,
+                   participantsCount = participantsCount
+               )
+           }.toList() // List<ChatRoomDto>로 최종 반환
+    }
+
+    // 방장 확인 로직
     fun isRoomLeader(roomId: String, userId: String): Boolean {
-        val room = findRoomById(roomId) ?: return false
-        return room.roomLeader == userId
+       // ChatRoom을 찾아서, 그 방의 leaderUserId와 요청한 userId가 같은지 확인
+       return chatRoomRepository.findById(roomId).map { it.leaderUserId == userId }.orElse(false)
     }
 
-    // 유저별 채팅방 목록 조회 메서드 ---
-    fun getChatRoomsForUser(userId: String): List<ChatRoom> {
-        // 모든 채팅방 중에서 해당 userId가 참여자로 있거나, 방장인 채팅방만 필터링해서 반환해.
-        return chatRooms.values.filter { it.hasParticipant(userId) || it.roomLeader == userId }.toList()
+    // 채팅방 존재 여부 확인
+    fun doesRoomExist(roomId: String): Boolean {
+       return chatRoomRepository.existsById(roomId)
     }
 
-    // 현재 채팅방 목록 확인 (테스트용)
-    fun getAllChatRooms(): List<ChatRoom> {
-        return chatRooms.values.toList()
-    }
+     fun getRoom(roomId: String): ChatRoom? {
+         return chatRoomRepository.findById(roomId).orElse(null)
+     }
 }

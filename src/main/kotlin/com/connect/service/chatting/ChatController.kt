@@ -4,23 +4,33 @@ import org.springframework.messaging.handler.annotation.MessageMapping
 import org.springframework.messaging.handler.annotation.Payload
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor
 import org.springframework.messaging.simp.SimpMessagingTemplate
+import org.springframework.web.bind.annotation.CrossOrigin
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
-import java.security.Principal
 
 @RestController
+@CrossOrigin
 class ChatController(
     private val messagingTemplate: SimpMessagingTemplate, // 메시지 보내는 데 사용해
     private val chatRoomService: ChatRoomService // 채팅방 관리 서비스
 ) {
 
-    // 클라이언트가 /app/chat.sendMessage 로 메시지를 보내면 이 메서드가 처리해
     @MessageMapping("/chat.sendMessage")
     fun sendMessage(@Payload chatMessage: ChatMessage) {
-        println("메시지 수신 - 방: ${chatMessage.roomId}, 보낸이: ${chatMessage.sender}, 내용: ${chatMessage.content}")
-        // 해당 채팅방을 구독하고 있는 모든 클라이언트에게 메시지를 보내
-        // 목적지: /topic/chat/{roomId}
-        messagingTemplate.convertAndSend("/topic/chat/${chatMessage.roomId}", chatMessage)
+        val roomId = chatMessage.roomId
+        val sender = chatMessage.sender
+        val content = chatMessage.content
+
+        // 방이 존재하는지 확인 (선택 사항)
+        if (!chatRoomService.doesRoomExist(roomId)) {
+             messagingTemplate.convertAndSendToUser(
+                sender, "/queue/errors", "채팅방 ${roomId}는 존재하지 않습니다.")
+             return
+        }
+
+        println("메시지 보냄 - 방: $roomId, 발신자: $sender, 내용: $content")
+        messagingTemplate.convertAndSend("/topic/chat/$roomId", chatMessage)
     }
 
     // 클라이언트가 /app/chat.addUser 로 메시지를 보내면 이 메서드가 처리해
@@ -29,24 +39,26 @@ class ChatController(
     fun addUser(@Payload chatMessage: ChatMessage, headerAccessor: SimpMessageHeaderAccessor) {
         val userId = chatMessage.sender // 메시지 보낸 사람 = 입장하는 유저
         val roomId = chatMessage.roomId
+        val roomName = chatMessage.roomName
 
+        headerAccessor.sessionAttributes!!["username"] = userId
+        headerAccessor.sessionAttributes!!["roomId"] = roomId
         println("유저 입장 - 방: $roomId, 유저: $userId")
 
-        // 채팅방에 유저 추가하고 세션 정보 저장
-        if (chatRoomService.addParticipant(roomId, userId)) {
-            // WebSocket 세션에 roomId 저장 (나중에 유저 나갈 때 활용하려고)
-            headerAccessor.sessionAttributes?.put("roomId", roomId)
-            headerAccessor.sessionAttributes?.put("username", userId)
+        val added = chatRoomService.addParticipant(roomId, userId, roomName)
 
-            // 채팅방 모든 멤버에게 입장 메시지 발송
+        if (added) {
+            println("유저 추가됨 - 방: $roomId, 유저: $userId, 방 이름: $roomName")
             messagingTemplate.convertAndSend("/topic/chat/$roomId",
-                ChatMessage(MessageType.JOIN, roomId, userId, "${userId}님이 입장했습니다!"))
+                ChatMessage(MessageType.JOIN, roomId, userId, "${userId}님이 입장했습니다."))
         } else {
-            // 채팅방이 없거나 이미 참여 중인 경우 (오류 처리 필요)
-            println("유저 ${userId}가 방 ${roomId}에 참여할 수 없어. 이미 있거나 방이 없어.")
-            // 특정 유저에게만 메시지 보내기 (ex: 오류 메시지)
-            messagingTemplate.convertAndSendToUser(userId, "/queue/errors",
-                "방에 입장할 수 없습니다.")
+            // 이미 방에 있는 경우 or 서비스 로직 상 추가 불가능한 경우 처리
+            // 여기서는 이미 존재하는 경우 "이미 입장했습니다." 메시지를 보내도록 예시
+            messagingTemplate.convertAndSendToUser(
+                userId,
+                "/queue/errors",
+                "이미 방 ${roomId}에 입장해 있습니다."
+            )
         }
     }
 
@@ -54,95 +66,112 @@ class ChatController(
     // /app/chat.inviteUser 로 메시지를 보내면 처리
     @MessageMapping("/chat.inviteUser")
     fun inviteUser(@Payload chatMessage: ChatMessage) {
-        val inviter = chatMessage.sender // 메시지 보낸 사람 (초대하는 사람)
-        val invitee = chatMessage.recipient // 초대받는 사람!
+        val sender = chatMessage.sender // 초대하는 사람
+        val recipient = chatMessage.recipient // 초대받는 사람
         val roomId = chatMessage.roomId
+        val roomName = chatMessage.roomName ?: chatRoomService.getRoom(roomId)?.roomName ?: roomId
 
-        if (invitee == null) {
-            println("초대할 사람이 지정되지 않았어.")
+        if (!chatRoomService.isRoomLeader(roomId, sender)) {
+            messagingTemplate.convertAndSendToUser(
+                sender, "/queue/errors", "당신은 ${roomId} 방장이 아닙니다."
+            )
             return
         }
-
-        // 방장이 맞는지 확인해야 해!
-        if (!chatRoomService.isRoomLeader(roomId, inviter)) {
-            println("${inviter}님은 방장이 아니라서 ${invitee}님을 초대할 수 없어.")
-            // 방장만 가능하다고 방장에게 메시지 보내기
-            messagingTemplate.convertAndSendToUser(inviter, "/queue/errors",
-                "초대는 방장만 할 수 있습니다.")
-            return
+        if (!chatRoomService.doesRoomExist(roomId)) {
+             messagingTemplate.convertAndSendToUser(
+                sender, "/queue/errors", "채팅방 ${roomId}는 존재하지 않습니다.")
+             return
         }
 
-        // 실제로 유저를 채팅방에 추가해
-        if (chatRoomService.addParticipant(roomId, invitee)) {
-            println("${inviter}님이 방 ${roomId}에 ${invitee}님을 초대했어!")
-            // 모든 채팅방 멤버에게 초대 메시지 발송
+        val addedToRoom = chatRoomService.addParticipant(roomId, recipient!!, roomName)
+
+        if (addedToRoom) { // 성공적으로 추가되었다면 (새로 멤버가 되었다면)
+            // 초대받는 사람에게 초대 알림 메시지 발송
+            val invitationJson = mapOf(
+                "sender" to sender,
+                "roomId" to roomId,
+                "roomName" to roomName,
+                "message" to "${sender}님이 ${roomName} 방으로 당신을 초대했습니다."
+            )
+            messagingTemplate.convertAndSendToUser(
+                recipient, // 받는 사람의 User Queue로 메시지 전송
+                "/queue/invitations",
+                invitationJson
+            )
+
+            // 모든 방 참가자에게 누가 누구를 초대했는지 알림 (채팅방 내 시스템 메시지)
             messagingTemplate.convertAndSend("/topic/chat/$roomId",
-                ChatMessage(MessageType.INVITE, roomId, inviter, "${inviter}님이 ${invitee}님을 초대했습니다!", invitee))
-            // 초대받은 유저에게도 개인 메시지로 알림 (optional)
-            messagingTemplate.convertAndSendToUser(invitee, "/queue/invitations",
-                "방 ${roomId}에 초대되셨습니다!")
-        } else {
-            println("${invitee}님은 이미 방 ${roomId}에 있거나, 초대 실패.")
-            messagingTemplate.convertAndSendToUser(inviter, "/queue/errors",
-                "${invitee}님을 초대하지 못했습니다. 이미 참여 중이거나 문제가 발생했습니다.")
+                ChatMessage(MessageType.INVITE, roomId, sender, recipient = recipient, roomName = roomName))
+
+            println("초대 성공: ${sender}님이 ${recipient}님을 ${roomName} 방으로 초대했습니다. DB에 멤버십 추가 완료.")
+
+        } else { // 이미 방의 멤버인 경우
+            // 초대자에게 이미 멤버라고 알려줌
+            messagingTemplate.convertAndSendToUser(
+                sender, "/queue/errors", "${recipient}님은 이미 ${roomName} 방의 멤버입니다."
+            )
+            println("초대 실패: ${recipient}님은 이미 ${roomName} 방의 멤버입니다.")
         }
     }
-
     // **방장 기능: 유저 강퇴**
     // /app/chat.kickUser 로 메시지를 보내면 처리
     @MessageMapping("/chat.kickUser")
     fun kickUser(@Payload chatMessage: ChatMessage) {
-        val kicker = chatMessage.sender // 메시지 보낸 사람 (강퇴하는 사람)
-        val kickedUser = chatMessage.recipient // 강퇴당할 사람!
+        val sender = chatMessage.sender // 강퇴하는 사람
+        val recipient = chatMessage.recipient // 강퇴당하는 사람
         val roomId = chatMessage.roomId
 
-        if (kickedUser == null) {
-            println("강퇴할 사람이 지정되지 않았어.")
+        if (!chatRoomService.isRoomLeader(roomId, sender)) {
+            messagingTemplate.convertAndSendToUser(
+                sender, "/queue/errors", "당신은 ${roomId} 방장이 아닙니다."
+            )
             return
         }
-
-        // 방장이 맞는지 확인해야 해!
-        if (!chatRoomService.isRoomLeader(roomId, kicker)) {
-            println("${kicker}님은 방장이 아니라서 ${kickedUser}님을 강퇴할 수 없어.")
-            // 방장만 가능하다고 방장에게 메시지 보내기
-            messagingTemplate.convertAndSendToUser(kicker, "/queue/errors",
-                "강퇴는 방장만 할 수 있습니다.")
-            return
+        if (!chatRoomService.doesRoomExist(roomId)) {
+             messagingTemplate.convertAndSendToUser(
+                sender, "/queue/errors", "채팅방 ${roomId}는 존재하지 않습니다.")
+             return
         }
 
-        // 방장 자신은 강퇴할 수 없어
-        if (kicker == kickedUser) {
-            println("${kicker}님은 자신을 강퇴할 수 없어.")
-            messagingTemplate.convertAndSendToUser(kicker, "/queue/errors",
-                "자신을 강퇴할 수 없습니다.")
-            return
-        }
+        val removed = chatRoomService.removeParticipant(roomId, recipient!!) // DB에서 멤버십 삭제
 
-        // 실제로 유저를 채팅방에서 제거해
-        if (chatRoomService.removeParticipant(roomId, kickedUser)) {
-            println("${kicker}님이 방 ${roomId}에서 ${kickedUser}님을 강퇴했어!")
-            // 모든 채팅방 멤버에게 강퇴 메시지 발송
+        if (removed) {
+            // 강퇴당하는 사람에게 직접 알림
+            messagingTemplate.convertAndSendToUser(
+                recipient,
+                "/queue/errors",
+                "당신은 ${roomId} 방에서 강퇴당했습니다."
+            )
+            // 모든 방 참가자에게 누가 누구를 강퇴했는지 알림
             messagingTemplate.convertAndSend("/topic/chat/$roomId",
-                ChatMessage(MessageType.KICK, roomId, kicker, "${kicker}님이 ${kickedUser}님을 강퇴했습니다!", kickedUser))
-            // 강퇴당한 유저에게도 개인 메시지로 알림 (필수적)
-            messagingTemplate.convertAndSendToUser(kickedUser, "/queue/kicked",
-                "방 ${roomId}에서 강퇴당하셨습니다.")
-            // 강퇴당한 유저의 웹소켓 연결 끊기 (실제로는 세션 종료 로직이 필요)
-            // 여기서는 SimpMessagingTemplate으로 특정 세션 종료시키는 기능은 없어. 별도 로직 필요.
+                ChatMessage(MessageType.KICK, roomId, sender, recipient = recipient))
         } else {
-            println("${kickedUser}님은 방 ${roomId}에 없거나, 강퇴 실패.")
-            messagingTemplate.convertAndSendToUser(kicker, "/queue/errors",
-                "${kickedUser}님을 강퇴하지 못했습니다. 해당 유저가 없거나 문제가 발생했습니다.")
+             messagingTemplate.convertAndSendToUser(
+                sender, "/queue/errors", "${recipient}는 ${roomId} 방의 멤버가 아닙니다.")
         }
     }
 
-    @GetMapping("/api/chat/rooms") // HTTP GET 요청을 '/api/chat/rooms' 경로로 받음
-    fun getChatRoomsForUser(principal: Principal): List<ChatRoom> {
-        // principal 객체를 통해 현재 로그인한 사용자의 ID를 가져올 수 있어.
-        // Spring Security가 설정되어 있어야 제대로 작동해!
-        val userId = principal.name // principal.name이 사용자 ID 또는 이메일이라고 가정
+    @MessageMapping("/chat.leaveUser")
+    fun leaveUser(@Payload chatMessage: ChatMessage) {
+        val userId = chatMessage.sender
+        val roomId = chatMessage.roomId
 
-        println("유저 ${userId}의 채팅방 목록을 조회합니다.")
-        return chatRoomService.getChatRoomsForUser(userId)
+        val removed = chatRoomService.removeParticipant(roomId, userId)
+
+        if (removed) {
+            println("유저 퇴장 - 방: $roomId, 유저: $userId")
+            messagingTemplate.convertAndSend("/topic/chat/$roomId",
+                ChatMessage(MessageType.LEAVE, roomId, userId, "${userId}님이 퇴장했습니다."))
+        } else {
+            println("유저 ${userId}가 방 ${roomId}에서 나가지 못했습니다. (존재하지 않거나 이미 나감)")
+            messagingTemplate.convertAndSendToUser(
+                userId, "/queue/errors", "채팅방 ${roomId}에서 나갈 수 없습니다. (이미 나갔거나 방이 없습니다.)")
+        }
+    }
+
+    @GetMapping("/api/chat/rooms")
+    fun getChatRoomsForUser(@RequestParam userId: String): List<ChatRoomDto> {
+        println("채팅방 목록 요청 - 사용자 ID: $userId")
+        return chatRoomService.getRoomsForUser(userId)
     }
 }
