@@ -10,6 +10,7 @@ data class CreateBoardRequest(
 
 @RestController
 @RequestMapping("/api/boards")
+@CrossOrigin
 class BoardController(private val boardService: BoardService) {
 
     @GetMapping
