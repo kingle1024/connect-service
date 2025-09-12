@@ -1,6 +1,6 @@
 package com.connect.service.chatting.controller
 
-import com.connect.service.chatting.dto.ChatMessage
+import com.connect.service.chatting.dto.ChatMessageDto
 import com.connect.service.chatting.enums.MessageType
 import com.connect.service.chatting.service.ChatRoomService
 import org.springframework.messaging.handler.annotation.MessageMapping
@@ -16,10 +16,10 @@ class ChatWebSocketController (
     private val chatRoomService: ChatRoomService
 ) {
     @MessageMapping("/chat.sendMessage")
-    fun sendMessage(@Payload chatMessage: ChatMessage) {
-        val roomId = chatMessage.roomId
-        val sender = chatMessage.sender
-        val content = chatMessage.content
+    fun sendMessage(@Payload chatMessageDto: ChatMessageDto) {
+        val roomId = chatMessageDto.roomId
+        val sender = chatMessageDto.sender
+        val content = chatMessageDto.content
 
         // 방이 존재하는지 확인 (선택 사항)
         if (!chatRoomService.doesRoomExist(roomId)) {
@@ -29,14 +29,14 @@ class ChatWebSocketController (
         }
 
         println("메시지 보냄 - 방: $roomId, 발신자: $sender, 내용: $content")
-        messagingTemplate.convertAndSend("/topic/chat/$roomId", chatMessage)
+        messagingTemplate.convertAndSend("/topic/chat/$roomId", chatMessageDto)
     }
 
     @MessageMapping("/chat.addUser")
-    fun addUser(@Payload chatMessage: ChatMessage, headerAccessor: SimpMessageHeaderAccessor) {
-        val userId = chatMessage.sender // 메시지 보낸 사람 = 입장하는 유저
-        val roomId = chatMessage.roomId
-        val roomName = chatMessage.roomName
+    fun addUser(@Payload chatMessageDto: ChatMessageDto, headerAccessor: SimpMessageHeaderAccessor) {
+        val userId = chatMessageDto.sender // 메시지 보낸 사람 = 입장하는 유저
+        val roomId = chatMessageDto.roomId
+        val roomName = chatMessageDto.roomName
 
         headerAccessor.sessionAttributes!!["username"] = userId
         headerAccessor.sessionAttributes!!["roomId"] = roomId
@@ -47,7 +47,7 @@ class ChatWebSocketController (
         if (added) {
             println("유저 추가됨 - 방: $roomId, 유저: $userId, 방 이름: $roomName")
             messagingTemplate.convertAndSend("/topic/chat/$roomId",
-                ChatMessage(MessageType.JOIN, roomId, userId, "${userId}님이 입장했습니다.")
+                ChatMessageDto(null, MessageType.JOIN, roomId, userId, "${userId}님이 입장했습니다.")
             )
         } else {
             // 이미 방에 있는 경우 or 서비스 로직 상 추가 불가능한 경우 처리
@@ -61,11 +61,11 @@ class ChatWebSocketController (
     }
 
     @MessageMapping("/chat.inviteUser")
-    fun inviteUser(@Payload chatMessage: ChatMessage) {
-        val sender = chatMessage.sender // 초대하는 사람
-        val recipient = chatMessage.recipient // 초대받는 사람
-        val roomId = chatMessage.roomId
-        val roomName = chatMessage.roomName ?: chatRoomService.getRoom(roomId)?.roomName ?: roomId
+    fun inviteUser(@Payload chatMessageDto: ChatMessageDto) {
+        val sender = chatMessageDto.sender // 초대하는 사람
+        val recipient = chatMessageDto.recipient // 초대받는 사람
+        val roomId = chatMessageDto.roomId
+        val roomName = chatMessageDto.roomName ?: chatRoomService.getRoom(roomId)?.roomName ?: roomId
 
         if (!chatRoomService.isRoomLeader(roomId, sender)) {
             messagingTemplate.convertAndSendToUser(
@@ -97,7 +97,7 @@ class ChatWebSocketController (
 
             // 모든 방 참가자에게 누가 누구를 초대했는지 알림 (채팅방 내 시스템 메시지)
             messagingTemplate.convertAndSend("/topic/chat/$roomId",
-                ChatMessage(MessageType.INVITE, roomId, sender, recipient = recipient, roomName = roomName)
+                ChatMessageDto(null, MessageType.INVITE, roomId, sender, recipient = recipient, roomName = roomName)
             )
 
             println("초대 성공: ${sender}님이 ${recipient}님을 ${roomName} 방으로 초대했습니다. DB에 멤버십 추가 완료.")
@@ -112,10 +112,10 @@ class ChatWebSocketController (
     }
 
     @MessageMapping("/chat.kickUser")
-    fun kickUser(@Payload chatMessage: ChatMessage) {
-        val sender = chatMessage.sender // 강퇴하는 사람
-        val recipient = chatMessage.recipient // 강퇴당하는 사람
-        val roomId = chatMessage.roomId
+    fun kickUser(@Payload chatMessageDto: ChatMessageDto) {
+        val sender = chatMessageDto.sender // 강퇴하는 사람
+        val recipient = chatMessageDto.recipient // 강퇴당하는 사람
+        val roomId = chatMessageDto.roomId
 
         if (!chatRoomService.isRoomLeader(roomId, sender)) {
             messagingTemplate.convertAndSendToUser(
@@ -140,7 +140,7 @@ class ChatWebSocketController (
             )
             // 모든 방 참가자에게 누가 누구를 강퇴했는지 알림
             messagingTemplate.convertAndSend("/topic/chat/$roomId",
-                ChatMessage(MessageType.KICK, roomId, sender, recipient = recipient)
+                ChatMessageDto(null, MessageType.KICK, roomId, sender, recipient = recipient)
             )
         } else {
              messagingTemplate.convertAndSendToUser(
@@ -149,16 +149,16 @@ class ChatWebSocketController (
     }
 
     @MessageMapping("/chat.leaveUser")
-    fun leaveUser(@Payload chatMessage: ChatMessage) {
-        val userId = chatMessage.sender
-        val roomId = chatMessage.roomId
+    fun leaveUser(@Payload chatMessageDto: ChatMessageDto) {
+        val userId = chatMessageDto.sender
+        val roomId = chatMessageDto.roomId
 
         val removed = chatRoomService.removeParticipant(roomId, userId)
 
         if (removed) {
             println("유저 퇴장 - 방: $roomId, 유저: $userId")
             messagingTemplate.convertAndSend("/topic/chat/$roomId",
-                ChatMessage(MessageType.LEAVE, roomId, userId, "${userId}님이 퇴장했습니다.")
+                ChatMessageDto(null, MessageType.LEAVE, roomId, userId, "${userId}님이 퇴장했습니다.")
             )
         } else {
             println("유저 ${userId}가 방 ${roomId}에서 나가지 못했습니다. (존재하지 않거나 이미 나감)")

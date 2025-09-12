@@ -2,7 +2,8 @@ package com.connect.service.chatting.dto
 
 import com.connect.service.chatting.enums.MessageType
 
-data class ChatMessage(
+data class ChatMessageDto(
+    val id: String? = null,
     val type: MessageType,
     val roomId: String,
     val sender: String,
