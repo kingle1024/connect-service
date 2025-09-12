@@ -1,13 +1,10 @@
-package com.connect.service.board
+package com.connect.service.board.controller
 
+import com.connect.service.board.dto.CreateBoardRequest
+import com.connect.service.board.service.BoardService
 import com.connect.service.board.dto.UpdateBoardRequest
+import com.connect.service.board.entity.BoardMst
 import org.springframework.web.bind.annotation.* // <- 임포트 확인!
-
-data class CreateBoardRequest(
-    val title: String,
-    val content: String,
-    val author: String
-)
 
 @RestController
 @RequestMapping("/api/boards")

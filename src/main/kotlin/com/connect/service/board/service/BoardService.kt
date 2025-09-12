@@ -1,5 +1,7 @@
-package com.connect.service.board
+package com.connect.service.board.service
 
+import com.connect.service.board.entity.BoardMst
+import com.connect.service.board.repository.BoardRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 

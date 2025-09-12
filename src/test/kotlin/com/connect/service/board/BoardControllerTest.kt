@@ -1,16 +1,21 @@
 package com.connect.service.board
 
+import com.connect.service.board.controller.BoardController
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Test
 import org.mockito.BDDMockito.*
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
+import com.connect.service.board.dto.UpdateBoardRequest
+import com.connect.service.board.entity.BoardMst
+import com.connect.service.board.service.BoardService
 import org.springframework.http.MediaType
 import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
+
 @WebMvcTest(BoardController::class)
 @ContextConfiguration(classes = [com.connect.service.ConnectApplication::class])
 class BoardControllerTest {
@@ -65,16 +70,47 @@ class BoardControllerTest {
             .andExpect(jsonPath("$.content").value("새 게시글 내용")) // 내용 검증
             .andExpect(jsonPath("$.author").value("새로운 작성자")) // 작성자 검증
     }
-}
 
-// 테스트를 위해 필요한 DTO 클래스도 정의해줘!
-// 실제 프로젝트에선 별도의 파일에 정의되어 있을 거야 :)
-data class BoardMst(
-    val id: Long,
-    val title: String,
-    val content: String,
-    val author: String
-)
+    @Test
+    fun `게시글을 성공적으로 수정해야 한다`() {
+        val boardId = 1L // 가상의 ID
+        val updatedTitle = "수정된 제목입니다."
+        val updatedContent = "새로운 내용으로 변경했습니다."
+        val initialAuthor = "작성자"
+
+        // Mock 서비스가 반환할 결과 객체 생성
+        val updatedBoard = BoardMst(
+            id = boardId,
+            title = updatedTitle,
+            content = updatedContent,
+            author = initialAuthor,
+        )
+
+        // Mockito BDD 스타일로 행동 정의: boardService.updateBoard가 특정 인자로 호출되면 updatedBoard를 반환해라
+        given(boardService.updateBoard(boardId, updatedTitle, updatedContent, null))
+            .willReturn(updatedBoard)
+
+        // 수정 요청 데이터 준비
+        val updateRequest = UpdateBoardRequest(
+            id = boardId,
+            title = updatedTitle,
+            content = updatedContent
+        )
+
+        // PUT 요청 실행 및 응답 검증
+        mockMvc.perform(put("/api/boards/{id}", boardId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(updateRequest)))
+            .andExpect(status().isOk) // HTTP 200 OK
+            .andExpect(jsonPath("$.id").value(boardId))
+            .andExpect(jsonPath("$.title").value(updatedTitle))
+            .andExpect(jsonPath("$.content").value(updatedContent))
+            .andExpect(jsonPath("$.author").value(initialAuthor))
+
+        // (선택적) Mockito verify를 통해 boardService의 updateBoard 메서드가 정확히 한 번 호출되었는지 검증
+        verify(boardService, times(1)).updateBoard(boardId, updatedTitle, updatedContent, null)
+    }
+}
 
 data class CreateBoardRequest(
     val title: String,

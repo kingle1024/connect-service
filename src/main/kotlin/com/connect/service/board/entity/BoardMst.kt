@@ -1,9 +1,11 @@
-package com.connect.service.board
+package com.connect.service.board.entity
 
 import com.connect.service.comment.BaseEntity
-import jakarta.persistence.* // <- 임포트 확인!
-import org.springframework.data.jpa.repository.JpaRepository
-import org.springframework.stereotype.Repository
+import jakarta.persistence.Entity
+import jakarta.persistence.GeneratedValue
+import jakarta.persistence.GenerationType
+import jakarta.persistence.Id
+import jakarta.persistence.Table
 
 @Entity
 @Table(name = "board_mst")
@@ -17,8 +19,3 @@ data class BoardMst(
     var viewCount: Long = 0,
     var isDeleted: Boolean = false,
 ) : BaseEntity()
-
-@Repository
-interface BoardRepository : JpaRepository<BoardMst, Long> {
-
-}
