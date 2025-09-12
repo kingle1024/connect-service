@@ -1,7 +1,7 @@
 package com.connect.service.comment
 
-import com.connect.service.board.BoardMst
-import com.connect.service.board.BoardRepository
+import com.connect.service.board.entity.BoardMst
+import com.connect.service.board.repository.BoardRepository
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Assertions.assertNotNull

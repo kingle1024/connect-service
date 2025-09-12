@@ -1,6 +1,6 @@
 package com.connect.service.comment
 
-import com.connect.service.board.BoardRepository
+import com.connect.service.board.repository.BoardRepository
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
