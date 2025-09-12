@@ -11,9 +11,9 @@ data class BoardMst(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long? = null,
-    val title: String,
-    val content: String,
-    val author: String,
+    var title: String,
+    var content: String,
+    var author: String,
     var viewCount: Long = 0,
     var isDeleted: Boolean = false,
 ) : BaseEntity()
