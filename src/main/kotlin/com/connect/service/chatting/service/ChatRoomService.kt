@@ -1,5 +1,10 @@
-package com.connect.service.chatting
+package com.connect.service.chatting.service
 
+import com.connect.service.chatting.repository.RoomMembershipRepository
+import com.connect.service.chatting.entity.ChatRoom
+import com.connect.service.chatting.entity.RoomMembership
+import com.connect.service.chatting.entity.RoomMembershipId
+import com.connect.service.chatting.repository.ChatRoomRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime

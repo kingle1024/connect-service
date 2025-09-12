@@ -1,6 +1,9 @@
-package com.connect.service.chatting
+package com.connect.service.chatting.entity
 
-import jakarta.persistence.*
+import jakarta.persistence.Column
+import jakarta.persistence.Entity
+import jakarta.persistence.Id
+import jakarta.persistence.Table
 import java.time.LocalDateTime
 
 @Entity // 이 클래스가 JPA 엔티티임을 나타냄

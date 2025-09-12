@@ -1,5 +1,9 @@
-package com.connect.service.chatting
+package com.connect.service.chatting.controller
 
+import com.connect.service.chatting.dto.ChatMessage
+import com.connect.service.chatting.service.ChatRoomDto
+import com.connect.service.chatting.service.ChatRoomService
+import com.connect.service.chatting.enums.MessageType
 import org.springframework.messaging.handler.annotation.MessageMapping
 import org.springframework.messaging.handler.annotation.Payload
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor
@@ -50,7 +54,8 @@ class ChatController(
         if (added) {
             println("유저 추가됨 - 방: $roomId, 유저: $userId, 방 이름: $roomName")
             messagingTemplate.convertAndSend("/topic/chat/$roomId",
-                ChatMessage(MessageType.JOIN, roomId, userId, "${userId}님이 입장했습니다."))
+                ChatMessage(MessageType.JOIN, roomId, userId, "${userId}님이 입장했습니다.")
+            )
         } else {
             // 이미 방에 있는 경우 or 서비스 로직 상 추가 불가능한 경우 처리
             // 여기서는 이미 존재하는 경우 "이미 입장했습니다." 메시지를 보내도록 예시
@@ -101,7 +106,8 @@ class ChatController(
 
             // 모든 방 참가자에게 누가 누구를 초대했는지 알림 (채팅방 내 시스템 메시지)
             messagingTemplate.convertAndSend("/topic/chat/$roomId",
-                ChatMessage(MessageType.INVITE, roomId, sender, recipient = recipient, roomName = roomName))
+                ChatMessage(MessageType.INVITE, roomId, sender, recipient = recipient, roomName = roomName)
+            )
 
             println("초대 성공: ${sender}님이 ${recipient}님을 ${roomName} 방으로 초대했습니다. DB에 멤버십 추가 완료.")
 
@@ -144,7 +150,8 @@ class ChatController(
             )
             // 모든 방 참가자에게 누가 누구를 강퇴했는지 알림
             messagingTemplate.convertAndSend("/topic/chat/$roomId",
-                ChatMessage(MessageType.KICK, roomId, sender, recipient = recipient))
+                ChatMessage(MessageType.KICK, roomId, sender, recipient = recipient)
+            )
         } else {
              messagingTemplate.convertAndSendToUser(
                 sender, "/queue/errors", "${recipient}는 ${roomId} 방의 멤버가 아닙니다.")
@@ -161,7 +168,8 @@ class ChatController(
         if (removed) {
             println("유저 퇴장 - 방: $roomId, 유저: $userId")
             messagingTemplate.convertAndSend("/topic/chat/$roomId",
-                ChatMessage(MessageType.LEAVE, roomId, userId, "${userId}님이 퇴장했습니다."))
+                ChatMessage(MessageType.LEAVE, roomId, userId, "${userId}님이 퇴장했습니다.")
+            )
         } else {
             println("유저 ${userId}가 방 ${roomId}에서 나가지 못했습니다. (존재하지 않거나 이미 나감)")
             messagingTemplate.convertAndSendToUser(

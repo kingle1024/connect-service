@@ -1,5 +1,6 @@
-package com.connect.service.chatting
+package com.connect.service.chatting.entity
 
+import com.connect.service.chatting.entity.ChatRoom
 import jakarta.persistence.*
 import java.io.Serializable // 복합 키를 위해 필요
 import java.time.LocalDateTime

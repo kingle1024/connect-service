@@ -1,5 +1,7 @@
-package com.connect.service.chatting
+package com.connect.service.chatting.repository
 
+import com.connect.service.chatting.entity.RoomMembership
+import com.connect.service.chatting.entity.RoomMembershipId
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository
 
