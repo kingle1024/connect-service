@@ -1,25 +1,20 @@
 package com.connect.service.chatting.controller
 
 import com.connect.service.chatting.dto.ChatMessage
-import com.connect.service.chatting.service.ChatRoomDto
-import com.connect.service.chatting.service.ChatRoomService
 import com.connect.service.chatting.enums.MessageType
+import com.connect.service.chatting.service.ChatRoomService
 import org.springframework.messaging.handler.annotation.MessageMapping
 import org.springframework.messaging.handler.annotation.Payload
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor
 import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.web.bind.annotation.CrossOrigin
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.RestController
+import kotlin.collections.set
 
-@RestController
 @CrossOrigin
-class ChatController(
-    private val messagingTemplate: SimpMessagingTemplate, // 메시지 보내는 데 사용해
-    private val chatRoomService: ChatRoomService // 채팅방 관리 서비스
+class ChatWebSocketController (
+    private val messagingTemplate: SimpMessagingTemplate,
+    private val chatRoomService: ChatRoomService
 ) {
-
     @MessageMapping("/chat.sendMessage")
     fun sendMessage(@Payload chatMessage: ChatMessage) {
         val roomId = chatMessage.roomId
@@ -37,8 +32,6 @@ class ChatController(
         messagingTemplate.convertAndSend("/topic/chat/$roomId", chatMessage)
     }
 
-    // 클라이언트가 /app/chat.addUser 로 메시지를 보내면 이 메서드가 처리해
-    // 새로운 유저가 채팅방에 들어왔을 때 사용돼
     @MessageMapping("/chat.addUser")
     fun addUser(@Payload chatMessage: ChatMessage, headerAccessor: SimpMessageHeaderAccessor) {
         val userId = chatMessage.sender // 메시지 보낸 사람 = 입장하는 유저
@@ -67,8 +60,6 @@ class ChatController(
         }
     }
 
-    // **방장 기능: 유저 초대**
-    // /app/chat.inviteUser 로 메시지를 보내면 처리
     @MessageMapping("/chat.inviteUser")
     fun inviteUser(@Payload chatMessage: ChatMessage) {
         val sender = chatMessage.sender // 초대하는 사람
@@ -119,8 +110,7 @@ class ChatController(
             println("초대 실패: ${recipient}님은 이미 ${roomName} 방의 멤버입니다.")
         }
     }
-    // **방장 기능: 유저 강퇴**
-    // /app/chat.kickUser 로 메시지를 보내면 처리
+
     @MessageMapping("/chat.kickUser")
     fun kickUser(@Payload chatMessage: ChatMessage) {
         val sender = chatMessage.sender // 강퇴하는 사람
@@ -175,11 +165,5 @@ class ChatController(
             messagingTemplate.convertAndSendToUser(
                 userId, "/queue/errors", "채팅방 ${roomId}에서 나갈 수 없습니다. (이미 나갔거나 방이 없습니다.)")
         }
-    }
-
-    @GetMapping("/api/chat/rooms")
-    fun getChatRoomsForUser(@RequestParam userId: String): List<ChatRoomDto> {
-        println("채팅방 목록 요청 - 사용자 ID: $userId")
-        return chatRoomService.getRoomsForUser(userId)
     }
 }
