@@ -1,6 +1,7 @@
 package com.connect.service.board
 
 import com.connect.service.board.controller.BoardController
+import com.connect.service.board.dto.CreateBoardRequest
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Test
 import org.mockito.BDDMockito.*
@@ -15,6 +16,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
+import org.mockito.kotlin.anyOrNull
 
 @WebMvcTest(BoardController::class)
 @ContextConfiguration(classes = [com.connect.service.ConnectApplication::class])
@@ -110,10 +112,52 @@ class BoardControllerTest {
         // (선택적) Mockito verify를 통해 boardService의 updateBoard 메서드가 정확히 한 번 호출되었는지 검증
         verify(boardService, times(1)).updateBoard(boardId, updatedTitle, updatedContent, null)
     }
-}
 
-data class CreateBoardRequest(
-    val title: String,
-    val content: String,
-    val author: String
-)
+    @Test
+    fun `존재하지 않는 게시글을 수정 시도 시 404 Not Found를 반환해야 한다`() {
+        val nonExistentId = 999L // 존재하지 않는 가상의 ID
+        val updatedTitle = "새 제목"
+        val updatedContent = "새 내용"
+        val updateRequest = UpdateBoardRequest(
+            id = nonExistentId,
+            title = updatedTitle,
+            content = updatedContent
+        )
+
+        // Mocking: boardService.updateBoard()가 호출되면 NoSuchElementException을 던지도록 설정
+        given(boardService.updateBoard(nonExistentId, updatedTitle, updatedContent, null))
+            .willThrow(NoSuchElementException("Board with ID $nonExistentId not found"))
+
+        mockMvc.perform(put("/api/boards/{id}", nonExistentId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(updateRequest)))
+            .andExpect(status().isNotFound) // 404 Not Found 반환 검증
+            .andExpect(content().string("요청하신 리소스를 찾을 수 없습니다: Board with ID $nonExistentId not found")) // 에러 메시지 검증 (GlobalExceptionHandler 메시지)
+
+        verify(boardService, times(1)).updateBoard(nonExistentId, updatedTitle, updatedContent, null)
+    }
+
+    @Test
+    fun `경로 ID와 요청 본문 ID가 일치하지 않으면 400 Bad Request를 반환해야 한다`() {
+        val pathId = 1L
+        val bodyId = 2L // 경로 ID와 다른 ID
+
+        val updateRequest = UpdateBoardRequest(
+            id = bodyId, // 본문 ID가 경로 ID와 다름
+            title = "수정된 제목",
+            content = "수정된 내용"
+        )
+
+        // 이 경우, 컨트롤러의 자체 로직(id != request.id 체크)이 먼저 실행되므로
+        // boardService.updateBoard는 호출되지 않는다. 따라서 Mocking 불필요.
+        // 다만, verify를 통해 호출되지 않았음을 명시적으로 확인할 수 있다.
+
+        mockMvc.perform(put("/api/boards/{id}", pathId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(updateRequest)))
+            .andExpect(status().isBadRequest) // 400 Bad Request 반환 검증
+            .andExpect(content().string("잘못된 요청입니다: ID in path ($pathId) must match ID in request body ($bodyId)"))
+
+        verify(boardService, never()).updateBoard(anyLong(), anyString(), anyString(), anyOrNull())
+    }
+}
