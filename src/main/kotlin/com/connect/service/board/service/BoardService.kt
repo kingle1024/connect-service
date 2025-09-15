@@ -4,6 +4,7 @@ import com.connect.service.board.entity.BoardMst
 import com.connect.service.board.repository.BoardRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.util.Optional
 
 @Service
 class BoardService(private val boardRepository: BoardRepository) {
@@ -34,4 +35,9 @@ class BoardService(private val boardRepository: BoardRepository) {
         // 3. 업데이트된 게시글을 저장하고 반환합니다. (JPA는 변경 감지를 통해 자동으로 업데이트합니다)
         return boardRepository.save(existingBoard)
     }
+
+    fun getBoardById(id: Long): Optional<BoardMst> {
+            return boardRepository.findById(id)
+        }
+
 }
