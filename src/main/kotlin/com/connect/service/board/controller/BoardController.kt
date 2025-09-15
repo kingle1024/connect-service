@@ -4,6 +4,7 @@ import com.connect.service.board.dto.CreateBoardRequest
 import com.connect.service.board.service.BoardService
 import com.connect.service.board.dto.UpdateBoardRequest
 import com.connect.service.board.entity.BoardMst
+import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.* // <- 임포트 확인!
 
 @RestController
@@ -27,5 +28,12 @@ class BoardController(private val boardService: BoardService) {
             throw IllegalArgumentException("ID in path ($id) must match ID in request body (${request.id})")
         }
         return boardService.updateBoard(request.id, request.title, request.content, request.author)
+    }
+
+    @GetMapping("/{id}")
+    fun getBoardDetail(@PathVariable id: Long): ResponseEntity<BoardMst> {
+        return boardService.getBoardById(id)
+            .map { board -> ResponseEntity.ok(board) }
+            .orElse(ResponseEntity.notFound().build())
     }
 }
