@@ -16,6 +16,7 @@ data class BoardMst(
     var title: String,
     var content: String,
     var author: String,
+    var targetPlace: String,
     var viewCount: Long = 0,
     var isDeleted: Boolean = false,
 ) : BaseEntity()

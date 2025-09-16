@@ -1,7 +1,8 @@
 package com.connect.service.board.dto
 
-data class CreateBoardRequest(
+data class BoardCreateRequest(
     val title: String,
     val content: String,
-    val author: String
+    val author: String,
+    val targetPlace: String
 )
