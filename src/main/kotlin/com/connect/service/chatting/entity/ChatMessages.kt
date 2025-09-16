@@ -27,6 +27,6 @@ data class ChatMessages(
     @Column(name = "recipient") // null을 허용 (INVITE/KICK 메시지 등)
     val recipient: String? = null,
 
-    @Column(name = "timestamp", nullable = false)
-    val timestamp: LocalDateTime = LocalDateTime.now() // 메시지 생성 시간 자동 기록
+    @Column(name = "insert_dts", nullable = false)
+    val insertDts: LocalDateTime = LocalDateTime.now() // 메시지 생성 시간 자동 기록
 )

@@ -2,6 +2,7 @@ package com.connect.service.chatting.controller
 
 import com.connect.service.chatting.dto.ChatMessageDto
 import com.connect.service.chatting.enums.MessageType
+import com.connect.service.chatting.service.ChatMessageService
 import com.connect.service.chatting.service.ChatRoomService
 import org.springframework.messaging.handler.annotation.MessageMapping
 import org.springframework.messaging.handler.annotation.Payload
@@ -9,13 +10,15 @@ import org.springframework.messaging.simp.SimpMessageHeaderAccessor
 import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Controller
 import org.springframework.web.bind.annotation.CrossOrigin
+import java.time.LocalDateTime
 import kotlin.collections.set
 
 @Controller
 @CrossOrigin
 class ChatWebSocketController (
     private val messagingTemplate: SimpMessagingTemplate,
-    private val chatRoomService: ChatRoomService
+    private val chatRoomService: ChatRoomService,
+    private val chatMessageService: ChatMessageService,
 ) {
     @MessageMapping("/chat.sendMessage")
     fun sendMessage(@Payload chatMessageDto: ChatMessageDto) {
@@ -31,7 +34,18 @@ class ChatWebSocketController (
         }
 
         println("메시지 보냄 - 방: $roomId, 발신자: $sender, 내용: $content")
-        messagingTemplate.convertAndSend("/topic/chat/$roomId", chatMessageDto)
+
+        val savedDto = chatMessageService.saveChatMessage(ChatMessageDto( // DTO를 서비스로 넘겨서 저장
+            type = chatMessageDto.type,
+            roomId = chatMessageDto.roomId,
+            sender = chatMessageDto.sender,
+            content = chatMessageDto.content,
+            insertDts = LocalDateTime.now() // 현재 시간으로 저장
+        ))
+
+        println("메시지 보냄 및 저장 완료 - ID: ${savedDto.id}, 방: ${savedDto.roomId}, 발신자: ${savedDto.sender}, 내용: ${savedDto.content}, 시간: ${savedDto.insertDts}")
+
+        messagingTemplate.convertAndSend("/topic/chat/$roomId", savedDto)
     }
 
     @MessageMapping("/chat.addUser")
