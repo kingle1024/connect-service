@@ -45,7 +45,7 @@ class CommentServiceTest {
             // Given
             val boardId = 1L
             val request = CreateCommentRequest(content = "새 댓글입니다.", author = "글쓴이")
-            val board = BoardMst(id = boardId, title = "제목", content = "내용", author = "김코딩")
+            val board = BoardMst(id = boardId, title = "제목", content = "내용", author = "김코딩", targetPlace = "강촌역")
             val savedCommentId = 10L // 저장될 댓글의 ID 가정
             val now = LocalDateTime.now() // insertDts를 고정하기 위함
 
@@ -85,7 +85,7 @@ class CommentServiceTest {
             val boardId = 1L
             val parentCommentId = 100L
             val request = CreateCommentRequest(content = "대댓글입니다.", author = "대댓글러", parentCommentId = parentCommentId)
-            val board = BoardMst(id = boardId, title = "제목", content = "내용", author = "김코딩")
+            val board = BoardMst(id = boardId, title = "제목", content = "내용", author = "김코딩", targetPlace = "강촌역")
             val parentComment = CommentMst(id = parentCommentId, content = "부모 댓글", author = "원글쓴이", boardId = boardId)
             val savedCommentId = 11L
             val now = LocalDateTime.now()
@@ -143,7 +143,7 @@ class CommentServiceTest {
             val boardId = 1L
             val parentCommentId = 999L
             val request = CreateCommentRequest(content = "대댓글입니다.", author = "대댓글러", parentCommentId = parentCommentId)
-            val board = BoardMst(id = boardId, title = "제목", content = "내용", author = "김코딩")
+            val board = BoardMst(id = boardId, title = "제목", content = "내용", author = "김코딩", targetPlace = "강촌역")
 
             // Mocking
             `when`(boardRepository.findById(boardId)).thenReturn(java.util.Optional.of(board))

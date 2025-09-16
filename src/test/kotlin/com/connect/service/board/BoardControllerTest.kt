@@ -1,7 +1,8 @@
 package com.connect.service.board
 
+import com.connect.service.ConnectApplication
 import com.connect.service.board.controller.BoardController
-import com.connect.service.board.dto.CreateBoardRequest
+import com.connect.service.board.dto.BoardCreateRequest
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Test
 import org.mockito.BDDMockito.*
@@ -19,7 +20,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 import org.mockito.kotlin.anyOrNull
 
 @WebMvcTest(BoardController::class)
-@ContextConfiguration(classes = [com.connect.service.ConnectApplication::class])
+@ContextConfiguration(classes = [ConnectApplication::class])
 class BoardControllerTest {
 
     @Autowired
@@ -36,8 +37,8 @@ class BoardControllerTest {
     fun `GET_api_boards_요청시_모든_게시글을_반환해야_한다`() {
         // Given: BoardService가 호출되면 반환할 가상의 데이터 생성
         val boardList = listOf(
-            BoardMst(id = 1L, title = "첫 번째 게시글", content = "내용 1", author = "김개발"),
-            BoardMst(id = 2L, title = "두 번째 게시글", content = "내용 2", author = "박테스트")
+            BoardMst(id = 1L, title = "첫 번째 게시글", content = "내용 1", author = "김개발", targetPlace = "강촌역"),
+            BoardMst(id = 2L, title = "두 번째 게시글", content = "내용 2", author = "박테스트", targetPlace = "석사동")
         )
         // when(boardService.getAllBoards()).thenReturn(boardList) // 이렇게 쓰는 것도 좋아!
         given(boardService.getAllBoards()).willReturn(boardList)
@@ -54,13 +55,13 @@ class BoardControllerTest {
     @Test
     fun `POST_api_boards_요청시_새로운_게시글을_생성하고_반환해야_한다`() {
         // Given: 새로운 게시글 생성 요청 데이터와 Service가 반환할 가상의 결과 데이터 생성
-        val request = CreateBoardRequest(title = "새 게시글 제목", content = "새 게시글 내용", author = "새로운 작성자")
-        val createdBoard = BoardMst(id = 3L, title = "새 게시글 제목", content = "새 게시글 내용", author = "새로운 작성자")
+        val request = BoardCreateRequest(title = "새 게시글 제목", content = "새 게시글 내용", author = "새로운 작성자", targetPlace = "남춘천역")
+        val createdBoard = BoardMst(id = 3L, title = "새 게시글 제목", content = "새 게시글 내용", author = "새로운 작성자", targetPlace = "석사동")
 
         // given(boardService.createBoard(anyString(), anyString(), anyString())).willReturn(createdBoard) // 이렇게 좀 더 일반화해서 쓸 수도 있어
         // anyString()을 쓰려면 Mockito.anyString()을 static import 해줘야 해!
         // 여기서는 정확한 값을 써주는게 더 테스트 의도를 명확하게 보여줘 :)
-        given(boardService.createBoard(request.title, request.content, request.author)).willReturn(createdBoard)
+        given(boardService.createBoard(request)).willReturn(createdBoard)
 
         // When & Then: POST 요청을 보내고 결과 검증
         mockMvc.perform(post("/api/boards")
@@ -79,6 +80,9 @@ class BoardControllerTest {
         val updatedTitle = "수정된 제목입니다."
         val updatedContent = "새로운 내용으로 변경했습니다."
         val initialAuthor = "작성자"
+        val targetPlace = "남춘천역"
+        val viewCount = 1L
+        val isDeleted = false
 
         // Mock 서비스가 반환할 결과 객체 생성
         val updatedBoard = BoardMst(
@@ -86,6 +90,9 @@ class BoardControllerTest {
             title = updatedTitle,
             content = updatedContent,
             author = initialAuthor,
+            targetPlace = targetPlace,
+            viewCount = viewCount,
+            isDeleted = isDeleted,
         )
 
         // Mockito BDD 스타일로 행동 정의: boardService.updateBoard가 특정 인자로 호출되면 updatedBoard를 반환해라

@@ -1,6 +1,6 @@
 package com.connect.service.board.controller
 
-import com.connect.service.board.dto.CreateBoardRequest
+import com.connect.service.board.dto.BoardCreateRequest
 import com.connect.service.board.service.BoardService
 import com.connect.service.board.dto.UpdateBoardRequest
 import com.connect.service.board.entity.BoardMst
@@ -18,8 +18,8 @@ class BoardController(private val boardService: BoardService) {
     }
 
     @PostMapping
-    fun createBoard(@RequestBody request: CreateBoardRequest): BoardMst {
-        return boardService.createBoard(request.title, request.content, request.author)
+    fun createBoard(@RequestBody request: BoardCreateRequest): BoardMst {
+        return boardService.createBoard(request)
     }
 
     @PutMapping("/{id}")

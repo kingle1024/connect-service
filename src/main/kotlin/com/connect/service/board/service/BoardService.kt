@@ -1,5 +1,6 @@
 package com.connect.service.board.service
 
+import com.connect.service.board.dto.BoardCreateRequest
 import com.connect.service.board.entity.BoardMst
 import com.connect.service.board.repository.BoardRepository
 import org.springframework.stereotype.Service
@@ -14,8 +15,13 @@ class BoardService(private val boardRepository: BoardRepository) {
     }
 
     @Transactional
-    fun createBoard(title: String, content: String, author: String): BoardMst {
-        val newBoardMst = BoardMst(title = title, content = content, author = author)
+    fun createBoard(request: BoardCreateRequest): BoardMst {
+        val newBoardMst = BoardMst(
+            title = request.title,
+            content = request.content,
+            author = request.author,
+            targetPlace = request.targetPlace
+        )
         return boardRepository.save(newBoardMst)
     }
 
