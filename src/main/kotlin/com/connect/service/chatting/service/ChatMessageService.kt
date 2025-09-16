@@ -19,14 +19,14 @@ class ChatMessageService(
             sender = chatMessageDto.sender,
             content = chatMessageDto.content,
             recipient = chatMessageDto.recipient,
-            timestamp = LocalDateTime.now() // 저장 시점의 시간을 명확히 기록
+            insertDts = LocalDateTime.now() // 저장 시점의 시간을 명확히 기록
         )
         return chatMessageRepository.save(messageEntity)
     }
 
     @Transactional(readOnly = true)
     fun getChatHistoryForRoom(roomId: String): List<ChatMessageDto> {
-        return chatMessageRepository.findByRoomIdOrderByTimestampAsc(roomId).map { entity ->
+        return chatMessageRepository.findByRoomIdOrderByInsertDtsAsc(roomId).map { entity ->
             ChatMessageDto(
                 id = entity.id.toString(),
                 type = entity.type,
