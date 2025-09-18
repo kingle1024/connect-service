@@ -15,7 +15,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Set up JDK
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v4
         with:
           java-version: '17'  # JDK 버전 설정
           distribution: 'adopt'  # JDK 배포판
