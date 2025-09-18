@@ -4,7 +4,7 @@ FROM eclipse-temurin:17-jdk as builder
 COPY gradlew .
 COPY gradle gradle
 COPY build.gradle .
-COPY settings.gradle .
+COPY settings.gradle.kts .
 COPY src src
 RUN chmod +x ./gradlew
 RUN ./gradlew bootjar
