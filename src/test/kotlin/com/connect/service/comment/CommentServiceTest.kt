@@ -45,9 +45,22 @@ class CommentServiceTest {
             // Given
             val boardId = 1L
             val request = CreateCommentRequest(content = "새 댓글입니다.", author = "글쓴이")
-            val board = BoardMst(id = boardId, title = "제목", content = "내용", author = "김코딩", targetPlace = "강촌역")
+            val now = LocalDateTime.now()
+            val board = BoardMst(
+                id = 1L,
+                title = "첫 번째 게시글",
+                content = "내용 1",
+                category = "자유게시판", // 새로운 필드 추가
+                userId = "kim.dev@example.com", // 새로운 필드 추가
+                userName = "김개발", // 새로운 필드 추가 (이전 author 역할)
+                deadlineDts = now.plusDays(1), // 마감일 (적절한 시간 설정)
+                destination = "강촌역",
+                maxCapacity = 4, // 새로운 필드 추가
+                currentParticipants = 1, // 새로운 필드 추가
+                commentCount = 0,
+                isDeleted = false
+            )
             val savedCommentId = 10L // 저장될 댓글의 ID 가정
-            val now = LocalDateTime.now() // insertDts를 고정하기 위함
 
             // Mocking (given().willReturn() 사용 - BDD 스타일)
             // findByIdOrNull은 Kotlin 확장 함수라서 약간의 우회 필요
@@ -82,13 +95,26 @@ class CommentServiceTest {
         @DisplayName("성공: 게시글이 존재하고 유효한 부모 댓글이 있는 경우")
         fun `createComment should create a comment when board and parent comment exist`() {
             // Given
+            val now = LocalDateTime.now()
             val boardId = 1L
             val parentCommentId = 100L
             val request = CreateCommentRequest(content = "대댓글입니다.", author = "대댓글러", parentCommentId = parentCommentId)
-            val board = BoardMst(id = boardId, title = "제목", content = "내용", author = "김코딩", targetPlace = "강촌역")
+            val board = BoardMst(
+                id = 1L,
+                title = "첫 번째 게시글",
+                content = "내용 1",
+                category = "자유게시판", // 새로운 필드 추가
+                userId = "kim.dev@example.com", // 새로운 필드 추가
+                userName = "김개발", // 새로운 필드 추가 (이전 author 역할)
+                deadlineDts = now.plusDays(1), // 마감일 (적절한 시간 설정)
+                destination = "강촌역",
+                maxCapacity = 4, // 새로운 필드 추가
+                currentParticipants = 1, // 새로운 필드 추가
+                commentCount = 0,
+                isDeleted = false
+            )
             val parentComment = CommentMst(id = parentCommentId, content = "부모 댓글", author = "원글쓴이", boardId = boardId)
             val savedCommentId = 11L
-            val now = LocalDateTime.now()
 
             // Mocking
             `when`(boardRepository.findById(boardId)).thenReturn(java.util.Optional.of(board))
@@ -140,10 +166,24 @@ class CommentServiceTest {
         @DisplayName("실패: 부모 댓글이 존재하지 않는 경우 IllegalArgumentException 발생")
         fun `createComment should throw IllegalArgumentException when parent comment does not exist`() {
             // Given
+            val now = LocalDateTime.now()
             val boardId = 1L
             val parentCommentId = 999L
             val request = CreateCommentRequest(content = "대댓글입니다.", author = "대댓글러", parentCommentId = parentCommentId)
-            val board = BoardMst(id = boardId, title = "제목", content = "내용", author = "김코딩", targetPlace = "강촌역")
+            val board = BoardMst(
+                id = 1L,
+                title = "첫 번째 게시글",
+                content = "내용 1",
+                category = "자유게시판", // 새로운 필드 추가
+                userId = "kim.dev@example.com", // 새로운 필드 추가
+                userName = "김개발", // 새로운 필드 추가 (이전 author 역할)
+                deadlineDts = now.plusDays(1), // 마감일 (적절한 시간 설정)
+                destination = "강촌역",
+                maxCapacity = 4, // 새로운 필드 추가
+                currentParticipants = 1, // 새로운 필드 추가
+                commentCount = 0,
+                isDeleted = false
+            )
 
             // Mocking
             `when`(boardRepository.findById(boardId)).thenReturn(java.util.Optional.of(board))
