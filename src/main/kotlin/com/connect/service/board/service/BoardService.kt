@@ -19,14 +19,20 @@ class BoardService(private val boardRepository: BoardRepository) {
         val newBoardMst = BoardMst(
             title = request.title,
             content = request.content,
-            author = request.author,
-            targetPlace = request.targetPlace
+            category = request.category,
+            userId = request.userId,
+            userName = request.userName,
+            deadlineDts = request.deadlineDts,
+            destination = request.destination,
+            maxCapacity = request.maxCapacity,
+            currentParticipants = request.currentParticipants
         )
         return boardRepository.save(newBoardMst)
     }
 
+
     @Transactional
-    fun updateBoard(id: Long, title: String, content: String, author: String?): BoardMst {
+    fun updateBoard(id: Long, title: String, content: String, userId: String?): BoardMst {
         val existingBoard = boardRepository.findById(id)
             .orElseThrow { NoSuchElementException("Board with ID $id not found") }
 
@@ -34,8 +40,8 @@ class BoardService(private val boardRepository: BoardRepository) {
         existingBoard.title = title
         existingBoard.content = content
         // author는 변경되지 않을 수도 있으므로 null 체크 후 업데이트
-        if (author != null) {
-            existingBoard.author = author
+        if (userId != null) {
+            existingBoard.userId = userId
         }
 
         // 3. 업데이트된 게시글을 저장하고 반환합니다. (JPA는 변경 감지를 통해 자동으로 업데이트합니다)

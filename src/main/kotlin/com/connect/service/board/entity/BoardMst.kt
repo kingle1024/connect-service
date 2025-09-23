@@ -6,6 +6,7 @@ import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
+import java.time.LocalDateTime
 
 @Entity
 @Table(name = "board_mst")
@@ -15,8 +16,14 @@ data class BoardMst(
     val id: Long? = null,
     var title: String,
     var content: String,
-    var author: String,
-    var targetPlace: String,
-    var viewCount: Long = 0,
+    var category: String,
+    var commentCount: Long = 0,
+    var userId: String,
+    var userName: String,
+    var deadlineDts: LocalDateTime,
+    var destination: String,
+    var maxCapacity: Int,
+    var currentParticipants: Int,
+
     var isDeleted: Boolean = false,
 ) : BaseEntity()
