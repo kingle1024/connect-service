@@ -4,33 +4,48 @@ import java.time.LocalDateTime
 
 data class CreateCommentRequest(
     val content: String,
-    val author: String,
-    val parentCommentId: Long? = null
+    val userId: String, // 댓글 작성자 ID
+    val userName: String, // 댓글 작성자 이름
+    val parentId: Long? = null // 대댓글인 경우 부모 CommentMst의 ID, 일반 댓글은 null
 )
 
 data class CommentResponse(
     val id: Long,
+    val userId: String,
+    val userName: String,
     val content: String,
-    val author: String,
-    val boardId: Long,
-    val parentCommentId: Long?,
-    val isDeleted: Boolean,
     val insertDts: LocalDateTime,
     val updateDts: LocalDateTime,
-    val replies: MutableList<CommentResponse> = mutableListOf() // 대댓글들을 담을 리스트 (계층형 조회 시 사용)
+    val isDeleted: Boolean,
+    val parentId: Long?, // 대댓글인 경우 부모 댓글의 ID (CommentMst.id), 일반 댓글은 null
+    val replies: MutableList<CommentResponse> = mutableListOf() // 이 댓글의 대댓글 목록
 ) {
-    // Comment.kt 엔티티를 CommentResponse DTO로 변환하는 확장 함수 또는 동반 객체 함수
     companion object {
-        fun from(comment: CommentMst): CommentResponse {
+        // CommentMst 엔티티로부터 CommentResponse 생성
+        fun from(commentMst: CommentMst): CommentResponse {
             return CommentResponse(
-                id = comment.id!!,
-                content = comment.content,
-                author = comment.author,
-                boardId = comment.boardId,
-                parentCommentId = comment.parentCommentId,
-                isDeleted = comment.isDeleted,
-                insertDts = comment.insertDts,
-                updateDts = comment.updateDts
+                id = commentMst.id!!,
+                userId = commentMst.userId,
+                userName = commentMst.userName,
+                content = commentMst.content,
+                insertDts = commentMst.insertDts,
+                updateDts = commentMst.updateDts,
+                isDeleted = commentMst.isDeleted,
+                parentId = null // CommentMst는 부모가 없어
+            )
+        }
+
+        // CommentDtl 엔티티로부터 CommentResponse 생성
+        fun from(commentDtl: CommentDtl): CommentResponse {
+            return CommentResponse(
+                id = commentDtl.id!!,
+                userId = commentDtl.userId,
+                userName = commentDtl.userName,
+                content = commentDtl.content,
+                insertDts = commentDtl.insertDts,
+                updateDts = commentDtl.updateDts,
+                isDeleted = commentDtl.isDeleted,
+                parentId = commentDtl.parentId // CommentDtl은 부모 ID가 있어
             )
         }
     }

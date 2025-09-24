@@ -10,7 +10,8 @@ import kotlin.IllegalArgumentException
 @Service
 @Transactional(readOnly = true) // 읽기 전용 트랜잭션, 쓰기는 @Transactional 별도 적용
 class CommentService(
-    private val commentRepository: CommentRepository,
+    private val commentMstRepository: CommentMstRepository,
+    private val commentDtlRepository: CommentDtlRepository,
     private val boardRepository: BoardRepository // 게시글 존재 여부 확인용 (BoardRepository가 필요해)
 ) {
 
@@ -21,115 +22,127 @@ class CommentService(
         boardRepository.findByIdOrNull(boardId)
             ?: throw IllegalArgumentException("게시글을 찾을 수 없습니다: $boardId")
 
-        // 부모 댓글 ID가 있다면 존재하는 댓글인지 확인
-        request.parentCommentId?.let { parentId ->
-            commentRepository.findByIdOrNull(parentId)
-                ?: throw IllegalArgumentException("부모 댓글을 찾을 수 없습니다: $parentId")
-        }
+        // 2. 부모 댓글 ID 유무에 따라 CommentMst 또는 CommentDtl 생성
+        if (request.parentId == null) {
+            // 일반 댓글 생성 (CommentMst)
+            val newCommentMst = CommentMst(
+                userId = request.userId,
+                userName = request.userName,
+                content = request.content,
+                postId = boardId // CommentMst는 postId를 가짐
+            )
+            val savedCommentMst = commentMstRepository.save(newCommentMst)
+            return CommentResponse.from(savedCommentMst)
+        } else {
+            // 대댓글 생성 (CommentDtl)
+            val parentComment = commentMstRepository.findByIdOrNull(request.parentId)
+                ?: throw IllegalArgumentException("부모 댓글을 찾을 수 없습니다: ${request.parentId}")
 
-        val newComment = CommentMst(
-            content = request.content,
-            author = request.author,
-            boardId = boardId,
-            parentCommentId = request.parentCommentId
-        )
-        val savedComment = commentRepository.save(newComment)
-        return CommentResponse.from(savedComment)
+            val newCommentDtl = CommentDtl(
+                userId = request.userId,
+                userName = request.userName,
+                content = request.content,
+                parentId = parentComment.id!! // CommentDtl은 parentId를 가짐
+            )
+            val savedCommentDtl = commentDtlRepository.save(newCommentDtl)
+
+            // 양방향 관계 업데이트 (JPA 연관 관계를 통해 처리)
+            // CommentMst의 replies 리스트에 CommentDtl 추가
+            parentComment.replies.add(savedCommentDtl)
+            commentMstRepository.save(parentComment) // 변경 사항 반영
+
+            return CommentResponse.from(savedCommentDtl)
+        }
     }
 
     // 특정 게시글의 댓글들을 계층형으로 조회
     fun getCommentsByBoardId(boardId: Long): List<CommentResponse> {
-        val allComments = commentRepository.findAllByBoardIdOrderByInsertDtsAsc(boardId)
-        val commentMap = allComments.associateBy { it.id!! } // ID를 키로 하는 맵 생성
+        // 해당 게시글의 모든 최상위 댓글 (CommentMst) 조회
+        val topLevelComments = commentMstRepository.findAllByPostIdOrderByInsertDtsAsc(boardId)
 
-        val topLevelComments = mutableListOf<CommentResponse>()
+        // CommentResponse로 변환 및 맵 생성
+        val commentResponseMap = topLevelComments.associate { it.id!! to CommentResponse.from(it) }.toMutableMap()
 
-        // 맵 순회하면서 대댓글들 부모에 연결
-        for (comment in allComments) {
-            val commentResponse = CommentResponse.from(comment)
-            if (comment.parentCommentId == null) {
-                topLevelComments.add(commentResponse) // 최상위 댓글은 바로 추가
-            } else {
-                commentMap[comment.parentCommentId]?.let { parentComment ->
-                    // 부모 댓글이 '삭제됨' 상태이고, 부모 댓글이 최상위 댓글인 경우 직접 처리
-                    // (여기서는 CommentResponse.replies에 추가하도록 구현)
-                    commentMap[comment.parentCommentId]?.let {
-                        // 실제 CommentResponse 맵에 부모 찾아서 추가하는 로직이 필요.
-                        // Map<Long, CommentResponse>를 만들어서 사용하면 효율적이야.
-                        // 아래 계층 구조를 만드는 로직을 사용하면 좀 더 깔끔해!
-                    }
-                }
-            }
-        }
-        return buildCommentHierarchy(topLevelComments, allComments)
-    }
-
-    // 댓글 계층 구조를 재귀적으로 만드는 함수
-    private fun buildCommentHierarchy(
-        topLevelComments: List<CommentResponse>,
-        allComments: List<CommentMst>
-    ): List<CommentResponse> {
-        val commentResponseMap = allComments.associate { it.id!! to CommentResponse.from(it) }
-        val rootComments = mutableListOf<CommentResponse>()
-
-        for (comment in allComments) {
-            val commentResponse = commentResponseMap[comment.id!!]!!
-            if (comment.parentCommentId == null) {
-                rootComments.add(commentResponse)
-            } else {
-                commentResponseMap[comment.parentCommentId]?.replies?.add(commentResponse)
-            }
+        // 각 최상위 댓글의 대댓글 (CommentDtl)을 조회하고 CommentResponse에 연결
+        for (commentMst in topLevelComments) {
+            val commentMstResponse = commentResponseMap[commentMst.id!!]!!
+            // CommentMst에 연결된 CommentDtl들은 JPA 연관 관계 설정에 따라 FetchType.LAZY로 가져오거나
+            // commentDtlRepository를 통해 직접 조회 가능 (여기서는 직접 조회 예시)
+            val childReplies = commentDtlRepository.findAllByParentIdOrderByInsertDtsAsc(commentMst.id!!)
+            childReplies.map { CommentResponse.from(it) }.forEach { commentMstResponse.replies.add(it) }
         }
 
-        // insertDts 순으로 정렬해서 반환 (optional, DB 쿼리에서 이미 정렬되어 있다고 가정)
-        rootComments.sortBy { it.insertDts }
-        rootComments.forEach { sortRepliesRecursively(it.replies) } // 대댓글도 정렬
-        return rootComments
+        return topLevelComments.map { commentResponseMap[it.id!!]!! }.toList()
     }
-
-    private fun sortRepliesRecursively(replies: MutableList<CommentResponse>) {
-        replies.sortBy { it.insertDts }
-        replies.forEach { sortRepliesRecursively(it.replies) }
-    }
-
 
     // 댓글 수정
     @Transactional
-    fun updateComment(commentId: Long, request: UpdateCommentRequest): CommentResponse {
-        val comment = commentRepository.findByIdOrNull(commentId)
-            ?: throw IllegalArgumentException("댓글을 찾을 수 없습니다: $commentId")
+    fun updateComment(boardId: Long, commentId: Long, request: UpdateCommentRequest): CommentResponse {
+        // boardId가 path variable에 있기 때문에 boardId에 속한 댓글/대댓글인지 확인해야 함.
 
-        comment.apply {
-            content = request.content
-            updateDts = LocalDateTime.now()
+        // CommentMst인지 CommentDtl인지 확인
+        val commentMst = commentMstRepository.findByIdOrNull(commentId)
+        if (commentMst != null && commentMst.postId == boardId) { // CommentMst이고 해당 boardId에 속한다면
+            commentMst.apply {
+                content = request.content
+                updateDts = LocalDateTime.now()
+            }
+            val updatedComment = commentMstRepository.save(commentMst)
+            return CommentResponse.from(updatedComment)
         }
-        val updatedComment = commentRepository.save(comment)
-        return CommentResponse.from(updatedComment)
+
+        val commentDtl = commentDtlRepository.findByIdOrNull(commentId)
+        if (commentDtl != null) { // CommentDtl인 경우, 부모 CommentMst가 해당 boardId에 속하는지 확인
+            val parentComment = commentMstRepository.findByIdOrNull(commentDtl.parentId)
+            if (parentComment != null && parentComment.postId == boardId) {
+                commentDtl.apply {
+                    content = request.content
+                    updateDts = LocalDateTime.now()
+                }
+                val updatedReply = commentDtlRepository.save(commentDtl)
+                return CommentResponse.from(updatedReply)
+            }
+        }
+
+        throw IllegalArgumentException("해당 게시글($boardId)에 속하는 댓글을 찾을 수 없습니다: $commentId")
     }
 
     // 댓글 삭제
     @Transactional
-    fun deleteComment(commentId: Long) {
-        val comment = commentRepository.findByIdOrNull(commentId)
-            ?: throw IllegalArgumentException("댓글을 찾을 수 없습니다: $commentId")
+fun deleteComment(boardId: Long, commentId: Long) {
+        // CommentMst인지 CommentDtl인지 확인
+        val commentMst = commentMstRepository.findByIdOrNull(commentId)
+        if (commentMst != null && commentMst.postId == boardId) { // CommentMst이고 해당 boardId에 속한다면
+            // 만약 대댓글(CommentDtl)이 남아있다면 논리적 삭제
+            if (commentDtlRepository.countByParentIdAndIsDeletedFalse(commentMst.id!!) > 0) {
+                commentMst.isDeleted = true // 논리적 삭제
+                commentMst.updateDts = LocalDateTime.now()
+                commentMstRepository.save(commentMst)
+            } else {
+                commentMstRepository.delete(commentMst) // 대댓글 없으면 바로 삭제
+            }
+            return
+        }
 
-        // 만약 대댓글이 있다면 바로 삭제하지 않고 '삭제됨' 상태로 변경
-        // (orphanRemoval=true 같은 JPA 설정으로 자식 댓글이 자동으로 삭제되게 할 수도 있어)
-        if (commentRepository.findAllByParentCommentIdOrderByInsertDtsAsc(commentId).isNotEmpty()) {
-            comment.isDeleted = true // 논리적 삭제
-            commentRepository.save(comment)
-        } else {
-            // 대댓글이 없는 경우, 바로 삭제
-            commentRepository.delete(comment)
-            // 만약 삭제된 부모 댓글에 더 이상 대댓글이 없다면 부모 댓글도 완전 삭제 (선택 사항)
-            comment.parentCommentId?.let { parentId ->
-                val parentComment = commentRepository.findByIdOrNull(parentId)
-                if (parentComment != null && parentComment.isDeleted &&
-                    commentRepository.findAllByParentCommentIdOrderByInsertDtsAsc(parentId).isEmpty()) {
-                    commentRepository.delete(parentComment)
+        val commentDtl = commentDtlRepository.findByIdOrNull(commentId)
+        if (commentDtl != null) { // CommentDtl인 경우, 부모 CommentMst가 해당 boardId에 속하는지 확인
+            val parentComment = commentMstRepository.findByIdOrNull(commentDtl.parentId)
+            if (parentComment != null && parentComment.postId == boardId) {
+                // 대댓글은 일반적으로 바로 삭제 (논리적 삭제 대신)
+                commentDtlRepository.delete(commentDtl)
+
+                // 대댓글이 삭제된 후, 부모 댓글이 논리적 삭제 상태이고 더 이상 자식 대댓글이 없다면 부모 댓글도 완전 삭제 (선택 사항)
+                if (parentComment.isDeleted &&
+                    commentDtlRepository.countByParentIdAndIsDeletedFalse(parentComment.id!!) == 0L
+                ) {
+                    commentMstRepository.delete(parentComment)
                 }
+                return
             }
         }
+
+        throw IllegalArgumentException("해당 게시글($boardId)에 속하는 댓글을 찾을 수 없습니다: $commentId")
     }
+
 }
 
