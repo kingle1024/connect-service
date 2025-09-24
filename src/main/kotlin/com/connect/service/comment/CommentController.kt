@@ -27,16 +27,19 @@ class CommentController(private val commentService: CommentService) {
     // 댓글 수정
     @PutMapping("/{commentId}")
     fun updateComment(
+        @PathVariable boardId: Long,
         @PathVariable commentId: Long,
         @RequestBody request: UpdateCommentRequest
     ): CommentResponse {
-        return commentService.updateComment(commentId, request)
+        return commentService.updateComment(boardId, commentId, request)
     }
 
     // 댓글 삭제
     @DeleteMapping("/{commentId}")
     @ResponseStatus(HttpStatus.NO_CONTENT) // 204 No Content
-    fun deleteComment(@PathVariable commentId: Long) {
-        commentService.deleteComment(commentId)
+    fun deleteComment(
+        @PathVariable boardId: Long,
+        @PathVariable commentId: Long) {
+        commentService.deleteComment(boardId, commentId)
     }
 }
