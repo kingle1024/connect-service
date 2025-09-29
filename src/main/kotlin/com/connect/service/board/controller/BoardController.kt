@@ -1,11 +1,15 @@
 package com.connect.service.board.controller
 
 import com.connect.service.board.dto.BoardCreateRequest
+import com.connect.service.board.dto.PaginatedBoardResponse
 import com.connect.service.board.service.BoardService
 import com.connect.service.board.dto.UpdateBoardRequest
 import com.connect.service.board.entity.BoardMst
+import org.springframework.data.web.PageableDefault
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.* // <- 임포트 확인!
+import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.Sort
 
 @RestController
 @RequestMapping("/api/boards")
@@ -13,8 +17,12 @@ import org.springframework.web.bind.annotation.* // <- 임포트 확인!
 class BoardController(private val boardService: BoardService) {
 
     @GetMapping
-    fun getBoards(): List<BoardMst> {
-        return boardService.getAllBoards()
+    fun getBoards(
+        @PageableDefault(size = 10, sort = ["insertDts"], direction = Sort.Direction.DESC) pageable: Pageable
+    ): ResponseEntity<PaginatedBoardResponse> {
+        val paginatedResponse: PaginatedBoardResponse = boardService.getAllBoards(pageable)
+
+        return ResponseEntity.ok(paginatedResponse)
     }
 
     @PostMapping
