@@ -1,17 +1,37 @@
 package com.connect.service.board.service
 
 import com.connect.service.board.dto.BoardCreateRequest
+import com.connect.service.board.dto.BoardResponseDto
+import com.connect.service.board.dto.PaginatedBoardResponse
 import com.connect.service.board.entity.BoardMst
 import com.connect.service.board.repository.BoardRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.Optional
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 
 @Service
 class BoardService(private val boardRepository: BoardRepository) {
 
-    fun getAllBoards(): List<BoardMst> {
-        return boardRepository.findAll()
+    @Transactional(readOnly = true)
+    fun getAllBoards(pageable: Pageable): PaginatedBoardResponse {
+        val boardPage: Page<BoardMst> = boardRepository.findAll(pageable)
+
+        val boardResponseDtos: List<BoardResponseDto> = boardPage.content
+            .map { BoardResponseDto.from(it) } // 각 BoardMst 엔티티를 DTO로 변환
+
+        // 다음 페이지가 있다면 다음 페이지 번호를, 없으면 null 반환
+        val nextPageToken: Int? = if (boardPage.hasNext()) {
+            boardPage.number + 1
+        } else {
+            null
+        }
+
+        return PaginatedBoardResponse(
+            nextPageToken = nextPageToken,
+            posts = boardResponseDtos
+        )
     }
 
     @Transactional
