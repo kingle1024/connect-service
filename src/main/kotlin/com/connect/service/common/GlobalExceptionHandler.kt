@@ -26,8 +26,6 @@ class GlobalExceptionHandler {
     @ExceptionHandler(Exception::class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     fun handleGeneralException(ex: Exception): ResponseEntity<String> {
-        // 운영 환경에서는 상세한 예외 메시지를 클라이언트에 직접 노출하지 않는 것이 보안상 안전합니다.
-        // 개발/테스트 시에는 유용할 수 있습니다.
         return ResponseEntity("서버 내부 오류가 발생했습니다: ${ex.message}", HttpStatus.INTERNAL_SERVER_ERROR)
     }
 }
