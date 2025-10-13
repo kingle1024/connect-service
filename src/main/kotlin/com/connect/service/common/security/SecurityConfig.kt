@@ -42,6 +42,7 @@ class SecurityConfig(
                 authorize
                     .requestMatchers("/api/auth/**").permitAll() // 로그인, 회원가입 등 인증 관련 경로는 모두 허용
                     .requestMatchers("/api/public/**").permitAll() // 공개 API 경로
+                    .requestMatchers("/api/boards/**").permitAll() // 게시판 API 경로
                     .anyRequest().authenticated() // 그 외 모든 요청은 인증 필요
             }
             .headers { headers ->
