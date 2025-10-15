@@ -3,14 +3,17 @@ package com.connect.service.user.controller
 import com.connect.service.common.jwt.JwtTokenProvider
 import com.connect.service.common.jwt.dto.RefreshToken
 import com.connect.service.common.jwt.repository.RefreshTokenRepository
+import com.connect.service.user.domain.CustomUserDetails
 import com.connect.service.user.domain.Users
 import com.connect.service.user.dto.AuthResponse
 import com.connect.service.user.dto.LoginRequest
 import com.connect.service.user.dto.RegistUserRequest
 import com.connect.service.user.dto.TokenRefreshRequest
+import com.connect.service.user.dto.UserInfoResponse
 import com.connect.service.user.repository.UserRepository
 import com.connect.service.user.service.CustomUserDetailsService
 import jakarta.servlet.http.HttpServletRequest
+import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.authentication.AuthenticationManager
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
@@ -19,6 +22,7 @@ import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.web.bind.annotation.*
 import java.time.LocalDateTime
 import java.time.ZoneId
+import mu.KotlinLogging
 
 @RestController
 @RequestMapping("/api/auth")
@@ -30,6 +34,9 @@ class AuthController(
     private val customUserDetailsService: CustomUserDetailsService,
     private val refreshTokenRepository: RefreshTokenRepository
 ) {
+    companion object {
+        private val log = KotlinLogging.logger {} // 클래스 레벨에서 로거를 초기화합니다.
+    }
 
     @PostMapping("/register")
     fun registerUser(@RequestBody request: RegistUserRequest): ResponseEntity<String> {
@@ -137,5 +144,25 @@ class AuthController(
         val authentication = SecurityContextHolder.getContext().authentication
         val username = authentication.name // 인증된 사용자의 userId
         return ResponseEntity.ok("안녕하세요, $username 님! 이 정보는 보호된 데이터입니다.")
+    }
+
+    @GetMapping("/me")
+    fun getUserInfoByToken(@RequestParam token: String): ResponseEntity<UserInfoResponse> {
+        return try {
+            val authentication = jwtTokenProvider.getAuthentication(token)
+            val customUserDetails = authentication.principal as CustomUserDetails
+
+            val userInfo = UserInfoResponse(
+                userId = customUserDetails.getUserId(),
+                email = customUserDetails.getEmail(),
+                name = customUserDetails.getName(),
+                profileUrl = customUserDetails.getProfileUrl()
+            )
+
+            ResponseEntity.ok(userInfo)
+        } catch (e: Exception) {
+            log.error("토큰으로 사용자 정보 조회 중 오류 발생: {}", e.message, e)
+            ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null)
+        }
     }
 }
