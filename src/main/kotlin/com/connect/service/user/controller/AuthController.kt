@@ -147,8 +147,14 @@ class AuthController(
     }
 
     @GetMapping("/me")
-    fun getUserInfoByToken(@RequestParam token: String): ResponseEntity<UserInfoResponse> {
+    fun getUserInfoByToken(@RequestHeader("Authorization") authorizationHeader: String): ResponseEntity<UserInfoResponse> {
         return try {
+            if (!authorizationHeader.startsWith("Bearer ")) {
+                log.warn("인증 헤더 형식이 잘못되었습니다: {}", authorizationHeader)
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null)
+            }
+            val token = authorizationHeader.substring(7)
+
             val authentication = jwtTokenProvider.getAuthentication(token)
             val customUserDetails = authentication.principal as CustomUserDetails
 
@@ -159,6 +165,7 @@ class AuthController(
                 profileUrl = customUserDetails.getProfileUrl()
             )
 
+            log.info("사용자 정보 조회 성공: userId = {}", customUserDetails.getUserId())
             ResponseEntity.ok(userInfo)
         } catch (e: Exception) {
             log.error("토큰으로 사용자 정보 조회 중 오류 발생: {}", e.message, e)
