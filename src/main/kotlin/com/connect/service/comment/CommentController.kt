@@ -1,5 +1,6 @@
 package com.connect.service.comment
 
+import com.connect.service.comment.domain.Reply
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
@@ -10,18 +11,15 @@ class CommentController(private val commentService: CommentService) {
 
     // 특정 게시글의 모든 댓글 조회
     @GetMapping
-    fun getComments(@PathVariable boardId: Long): List<CommentResponse> {
+    fun getComments(@PathVariable boardId: Long): List<Reply> {
         return commentService.getCommentsByBoardId(boardId)
     }
 
     // 댓글 생성 (일반 댓글 또는 대댓글)
     @PostMapping
-    fun createComment(
-        @PathVariable boardId: Long,
-        @RequestBody request: CreateCommentRequest
-    ): ResponseEntity<CommentResponse> {
-        val newComment = commentService.createComment(boardId, request)
-        return ResponseEntity.status(HttpStatus.CREATED).body(newComment)
+    @ResponseStatus(HttpStatus.CREATED) // 성공적으로 생성되었음을 나타내는 201 상태 코드 반환
+    fun createComment(@PathVariable boardId: Long, @RequestBody request: CreateCommentRequest): Reply {
+        return commentService.createComment(boardId, request)
     }
 
     // 댓글 수정
