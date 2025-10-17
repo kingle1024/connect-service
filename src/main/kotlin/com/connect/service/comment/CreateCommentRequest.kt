@@ -3,10 +3,11 @@ package com.connect.service.comment
 import java.time.LocalDateTime
 
 data class CreateCommentRequest(
-    val content: String,
-    val userId: String, // 댓글 작성자 ID
-    val userName: String, // 댓글 작성자 이름
-    val parentId: Long? = null // 대댓글인 경우 부모 CommentMst의 ID, 일반 댓글은 null
+    val userId: String,      // 댓글 작성자 ID
+    val userName: String,    // 댓글 작성자 이름
+    val title: String?,      // 최상위 댓글의 제목 (대댓글인 경우 null)
+    val content: String,     // 댓글 내용
+    val parentId: Int?       // 대댓글인 경우 부모 댓글의 ID, 최상위 댓글인 경우 null
 )
 
 data class CommentResponse(
