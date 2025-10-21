@@ -1,124 +1,89 @@
 package com.connect.service.comment
 
 import com.connect.service.board.repository.BoardRepository
-import com.connect.service.comment.domain.CommentEntity
-import com.connect.service.comment.domain.Reply
-import com.connect.service.comment.repository.CommentRepository
+import com.connect.service.comment.domain.ReplyDto
+import com.connect.service.comment.domain.ReplyEntity
+import com.connect.service.comment.repository.ReplyRepository
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 import kotlin.IllegalArgumentException
+import com.connect.service.comment.domain.toReplyDto
 
 @Service
 @Transactional(readOnly = true) // 읽기 전용 트랜잭션, 쓰기는 @Transactional 별도 적용
 class CommentService(
-    private val commentRepository: CommentRepository,
+    private val replyRepository: ReplyRepository,
     private val commentMstRepository: CommentMstRepository,
     private val commentDtlRepository: CommentDtlRepository,
     private val boardRepository: BoardRepository // 게시글 존재 여부 확인용 (BoardRepository가 필요해)
 ) {
 
-    // 댓글 생성
-    @Transactional
-    fun createComment(boardId: Long, request: CreateCommentRequest): Reply {
-        // 1. 게시글이 존재하는지 확인
-        boardRepository.findById(boardId)
-            ?: throw IllegalArgumentException("게시글을 찾을 수 없습니다: $boardId")
+    fun getCommentsByBoardId(boardId: Long): List<ReplyDto> { // 반환 타입 변경!
+        val allReplies = replyRepository.findAllByPostIdOrderByInsertDtsAsc(boardId)
+        val replyMap = allReplies
+            .associateBy { it.id }
+            .mapValues { (_, entity: ReplyEntity) -> entity.toReplyDto(boardId) }
+            .toMutableMap()
 
-        val newCommentEntity: CommentEntity
-        val commentId: Int = (commentRepository.findMaxId() ?: 0) + 1 // 가상의 ID 생성 로직 (DB Auto-increment 사용 권장)
-
-        if (request.parentId == null) {
-            // 2.1. 최상위 댓글 생성
-            newCommentEntity = CommentEntity(
-                id = commentId,
-                postId = boardId, // 최상위 댓글은 boardId에 직접 연결
-                userId = request.userId,
-                userName = request.userName,
-                title = request.title, // 최상위 댓글은 title을 가질 수 있음
-                content = request.content,
-                insertDts = LocalDateTime.now(),
-                parentReplyId = null // 최상위 댓글이므로 부모 댓글 ID는 null
-            )
-        } else {
-            // 2.2. 대댓글 생성
-            // 부모 댓글의 존재 여부 및 postId를 확인하기 위해 부모 댓글을 조회합니다.
-            // CommentRepository에서 findById는 Long 타입 id를 받아야 함 (CommentEntity의 id가 Int이므로 캐스팅)
-            val parentCommentEntity = commentRepository.findById(request.parentId)
-                ?: throw IllegalArgumentException("부모 댓글을 찾을 수 없습니다: ${request.parentId}")
-
-            newCommentEntity = CommentEntity(
-                id = commentId,
-                postId = parentCommentEntity.postId, // 대댓글은 부모 댓글과 동일한 postId를 가짐
-                userId = request.userId,
-                userName = request.userName,
-                title = null, // 대댓글은 title이 없음
-                content = request.content,
-                insertDts = LocalDateTime.now(),
-                parentReplyId = request.parentId // 대댓글의 부모 댓글 ID 셋팅
-            )
-        }
-
-        val savedCommentEntity = commentRepository.save(newCommentEntity) // DB에 저장
-
-        // 저장된 CommentEntity를 Reply DTO로 변환하여 반환
-        return savedCommentEntity.toReplyDto(boardId)
-    }
-
-    // 특정 게시글의 댓글들을 계층형으로 조회
-    fun getCommentsByBoardId(boardId: Long): List<Reply> {
-        val allComments = commentRepository.findAllByPostIdOrderByInsertDtsAsc(boardId)
-
-        // Map<댓글ID, Reply객체> 형태로 변환. toReplyDto 호출 시 boardId 전달.
-        val replyMap = allComments
-                    .associateBy { it.id } // Map의 키는 댓글 ID
-                    .mapValues { (_, entity) -> entity.toReplyDto(boardId) } // Map의 값은 Reply DTO
-                    .toMutableMap()
-
-        val topLevelReplies = mutableListOf<Reply>()
-
-        for (commentEntity in allComments) {
-            val replyDto = replyMap[commentEntity.id]!! // 현재 댓글에 해당하는 Reply 객체
-
-            if (commentEntity.parentReplyId == null) { // CommentEntity의 parentReplyId가 null이면 최상위 댓글
-                topLevelReplies.add(replyDto)
+        val topLevelReplies = mutableListOf<ReplyDto>() // 타입 변경!
+        for (replyEntity in allReplies) {
+            val currentReplyDto = replyMap[replyEntity.id]!!
+            if (replyEntity.parentReplyId == null) {
+                topLevelReplies.add(currentReplyDto)
             } else {
-                // 대댓글인 경우, 부모 댓글의 replies 리스트에 현재 대댓글 추가
-                val parentReply = replyMap[commentEntity.parentReplyId]
-                if (parentReply != null) {
-                    val currentReplies = parentReply.replies ?: emptyList()
-                    val updatedReplies = (currentReplies + replyDto).toMutableList()
-
-                    // 불변성 유지를 위해 copy를 사용하여 새로운 Reply 객체 생성 및 map 업데이트
-                    replyMap[commentEntity.parentReplyId] = parentReply.copy(replies = updatedReplies)
+                val parentId = replyEntity.parentReplyId
+                val parentReplyDto = replyMap[parentId]
+                if (parentReplyDto != null) {
+                    val currentChildren = parentReplyDto.replies ?: emptyList()
+                    val updatedChildren = (currentChildren + currentReplyDto).toList()
+                    replyMap[parentId] = parentReplyDto.copy(replies = updatedChildren)
                 }
             }
         }
-
-        // 최종 결과 반환: topLevelReplies에 추가된 객체들이 map에서 최종적으로 업데이트된 상태를 반영하도록 재참조.
-        // 또는 그냥 topLevelReplies 자체를 반환해도 됨 (만약 topLevelReplies에 들어간 Reply 객체가 map의 참조와 동일하다면)
-        // 여기서는 topLevelReplies 자체를 반환하면서 정렬만 해줍니다.
-        return topLevelReplies.sortedBy { it.insertDts }
+        return topLevelReplies.map { replyMap[it.id]!! }
     }
 
-private fun CommentEntity.toReplyDto(boardId: Long): Reply {
-        return Reply(
-            id = this.id,
-            userId = this.userId,
-            userName = this.userName,
-            title = this.title,
-            content = this.content,
-            insertDts = this.insertDts.format(DateTimeFormatter.ISO_DATE_TIME),
-            // 사용자님의 요청에 따라 parentId 셋팅:
-            // parentReplyId가 null (최상위 댓글)이면 boardId로,
-            // 아니면 CommentEntity의 parentReplyId로 셋팅합니다.
-            parentId = this.parentReplyId ?: boardId.toInt(), // Long을 Int로 캐스팅
-            replies = null // 초기에는 비워두고, 계층 구조 생성 시 채워넣음
-        )
-    }
 
+    @Transactional
+    fun createComment(boardId: Long, request: CreateCommentRequest): ReplyDto { // 반환 타입 변경!
+        boardRepository.findById(boardId)
+            ?: throw IllegalArgumentException("게시글을 찾을 수 없습니다: $boardId")
+
+        val newReplyEntity: ReplyEntity
+
+        if (request.parentId == null) {
+            newReplyEntity = ReplyEntity(
+                id = 0,
+                postId = boardId,
+                userId = request.userId,
+                userName = request.userName,
+                title = request.title,
+                content = request.content,
+                insertDts = LocalDateTime.now(),
+                parentReplyId = null
+            )
+        } else {
+            val parentReplyEntity = replyRepository.findById(request.parentId)
+                .orElseThrow { IllegalArgumentException("부모 댓글을 찾을 수 없습니다: ${request.parentId}") }
+
+            newReplyEntity = ReplyEntity(
+                id = 0,
+                postId = parentReplyEntity.postId,
+                userId = request.userId,
+                userName = request.userName,
+                title = null,
+                content = request.content,
+                insertDts = LocalDateTime.now(),
+                parentReplyId = request.parentId
+            )
+        }
+
+        val savedReplyEntity = replyRepository.save(newReplyEntity)
+
+        return savedReplyEntity.toReplyDto(boardId) // ReplyDto로 변환하여 반환!
+    }
 
     // 댓글 수정
     @Transactional
