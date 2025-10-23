@@ -119,40 +119,14 @@ class CommentService(
 
     // 댓글 삭제
     @Transactional
-fun deleteComment(boardId: Long, commentId: Long) {
-        // CommentMst인지 CommentDtl인지 확인
-        val commentMst = commentMstRepository.findByIdOrNull(commentId)
-        if (commentMst != null && commentMst.postId == boardId) { // CommentMst이고 해당 boardId에 속한다면
-            // 만약 대댓글(CommentDtl)이 남아있다면 논리적 삭제
-            if (commentDtlRepository.countByParentIdAndIsDeletedFalse(commentMst.id!!) > 0) {
-                commentMst.isDeleted = true // 논리적 삭제
-                commentMst.updateDts = LocalDateTime.now()
-                commentMstRepository.save(commentMst)
-            } else {
-                commentMstRepository.delete(commentMst) // 대댓글 없으면 바로 삭제
-            }
-            return
-        }
+    fun deleteComment(boardId: Long, replyId: Int) {
+        // 1. 해당 게시글에 속하는 댓글인지 확인하고 조회
+        val targetReply = replyRepository.findByPostIdAndId(boardId, replyId)
+            .orElseThrow { IllegalArgumentException("해당 게시글($boardId)에 속하는 댓글($replyId)을 찾을 수 없습니다.") }
 
-        val commentDtl = commentDtlRepository.findByIdOrNull(commentId)
-        if (commentDtl != null) { // CommentDtl인 경우, 부모 CommentMst가 해당 boardId에 속하는지 확인
-            val parentComment = commentMstRepository.findByIdOrNull(commentDtl.parentId)
-            if (parentComment != null && parentComment.postId == boardId) {
-                // 대댓글은 일반적으로 바로 삭제 (논리적 삭제 대신)
-                commentDtlRepository.delete(commentDtl)
-
-                // 대댓글이 삭제된 후, 부모 댓글이 논리적 삭제 상태이고 더 이상 자식 대댓글이 없다면 부모 댓글도 완전 삭제 (선택 사항)
-                if (parentComment.isDeleted &&
-                    commentDtlRepository.countByParentIdAndIsDeletedFalse(parentComment.id!!) == 0L
-                ) {
-                    commentMstRepository.delete(parentComment)
-                }
-                return
-            }
-        }
-
-        throw IllegalArgumentException("해당 게시글($boardId)에 속하는 댓글을 찾을 수 없습니다: $commentId")
+        // 2. 댓글을 물리적으로 삭제
+        // 이 때, `parent_reply_id`의 ON DELETE CASCADE 제약 조건에 의해 해당 댓글의 모든 자식 대댓글들도 DB에서 자동으로 삭제
+        replyRepository.delete(targetReply)
     }
-
 }
 
