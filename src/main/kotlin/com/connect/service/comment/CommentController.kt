@@ -32,11 +32,11 @@ class CommentController(private val commentService: CommentService) {
     }
 
     // 댓글 삭제
-    @DeleteMapping("/{commentId}")
+    @DeleteMapping("/{replyId}")
     @ResponseStatus(HttpStatus.NO_CONTENT) // 204 No Content
     fun deleteComment(
         @PathVariable boardId: Long,
-        @PathVariable commentId: Long) {
-        commentService.deleteComment(boardId, commentId)
+        @PathVariable replyId: Int) {
+        commentService.deleteComment(boardId, replyId)
     }
 }
