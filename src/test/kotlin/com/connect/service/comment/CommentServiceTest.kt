@@ -4,6 +4,7 @@ import com.connect.service.board.entity.BoardMst
 import com.connect.service.board.repository.BoardRepository
 import com.connect.service.comment.domain.ReplyEntity
 import com.connect.service.comment.repository.ReplyRepository
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -16,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.* // Mockito-Kotlin 라이브러리 사용 시 간편한 문법을 위해 import
 import java.time.LocalDateTime
 import java.util.Optional
+import kotlin.test.assertEquals
 
 @ExtendWith(MockitoExtension::class)
 class CommentServiceTest {
@@ -105,6 +107,32 @@ class CommentServiceTest {
         // 2. delete 메소드가 mockReply 객체로 한 번 호출되었는지 검증
         verify(replyRepository, times(1)).delete(mockReply)
         // 3. 다른 Mocked 메소드는 호출되지 않았는지 검증
+        verifyNoMoreInteractions(replyRepository)
+    }
+
+    @Test
+    fun `댓글 삭제_실패_게시글에_속하지_않는_댓글인_경우_예외_발생`() {
+        // Given
+        val boardId = 1L
+        val replyId = 101 // 존재하지 않는 또는 잘못된 댓글 ID
+
+        // findByPostIdAndId 호출 시, 빈 Optional을 반환하도록 설정하여 댓글을 찾을 수 없음을 모의
+        `when`(replyRepository.findByPostIdAndId(boardId, replyId)).thenReturn(Optional.empty())
+
+        // When & Then (예외 발생 검증)
+        // commentService.deleteComment 호출 시, IllegalArgumentException이 발생하는지 확인
+        val exception = assertThrows(IllegalArgumentException::class.java) {
+            commentService.deleteComment(boardId, replyId)
+        }
+
+        // 예외 메시지가 예상과 일치하는지 확인
+        assertEquals("해당 게시글($boardId)에 속하는 댓글($replyId)을 찾을 수 없습니다.", exception.message)
+
+        // findByPostIdAndId는 한 번 호출되었는지 검증
+        verify(replyRepository, times(1)).findByPostIdAndId(boardId, replyId)
+        // delete 메소드는 호출되지 않았는지 검증
+        verify(replyRepository, never()).delete(any())
+        // 다른 Mocked 메소드는 호출되지 않았는지 검증
         verifyNoMoreInteractions(replyRepository)
     }
 }
