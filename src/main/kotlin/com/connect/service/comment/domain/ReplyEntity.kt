@@ -29,10 +29,13 @@ data class ReplyEntity(
     val title: String?,      // 최상위 댓글 제목 (대댓글은 NULL)
 
     @Column(name = "content", nullable = false, columnDefinition = "TEXT") // 'content' 컬럼과 매핑, NOT NULL, TEXT 타입
-    val content: String,     // 댓글 내용
+    var content: String,     // 댓글 내용
 
     @Column(name = "insert_dts", nullable = false) // 'insert_dts' 컬럼과 매핑, NOT NULL
     val insertDts: LocalDateTime, // 댓글 작성일시 (LocalDateTime 객체)
+
+    @Column(name = "update_dts")
+    var updateDts: LocalDateTime? = null,
 
     @Column(name = "parent_reply_id") // 'parent_reply_id' 컬럼과 매핑, NULL 허용
     val parentReplyId: Int?  // 대댓글인 경우 부모 댓글의 ID (최상위 댓글은 NULL)
