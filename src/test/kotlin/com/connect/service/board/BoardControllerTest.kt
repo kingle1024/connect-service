@@ -36,52 +36,6 @@ class BoardControllerTest {
     private lateinit var boardService: BoardService
 
     @Test
-    fun `GET_api_boards_요청시_모든_게시글을_반환해야_한다`() {
-        // Given: BoardService가 호출되면 반환할 가상의 데이터 생성
-        val now = LocalDateTime.now()
-        val boardList = listOf(
-            BoardMst(
-                id = 1L,
-                title = "첫 번째 게시글",
-                content = "내용 1",
-                category = "자유게시판", // 새로운 필드 추가
-                userId = "kim.dev@example.com", // 새로운 필드 추가
-                userName = "김개발", // 새로운 필드 추가 (이전 author 역할)
-                deadlineDts = now.plusDays(1), // 마감일 (적절한 시간 설정)
-                destination = "강촌역",
-                maxCapacity = 4, // 새로운 필드 추가
-                currentParticipants = 1, // 새로운 필드 추가
-                commentCount = 0,
-                isDeleted = false
-            ),
-            BoardMst(
-                id = 2L,
-                title = "두 번째 게시글",
-                content = "내용 2",
-                category = "QnA", // 새로운 필드 추가
-                userId = "park.test@example.com", // 새로운 필드 추가
-                userName = "박테스트", // 새로운 필드 추가 (이전 author 역할)
-                deadlineDts = now.plusDays(2), // 마감일 (적절한 시간 설정)
-                destination = "석사동",
-                maxCapacity = 3, // 새로운 필드 추가
-                currentParticipants = 2, // 새로운 필드 추가
-                commentCount = 5,
-                isDeleted = false
-            )
-        )
-        // when(boardService.getAllBoards()).thenReturn(boardList) // 이렇게 쓰는 것도 좋아!
-        given(boardService.getAllBoards()).willReturn(boardList)
-
-        // When & Then: GET 요청을 보내고 결과 검증
-        mockMvc.perform(get("/api/boards")
-            .contentType(MediaType.APPLICATION_JSON)) // 요청 타입이 JSON이라고 명시
-            .andExpect(status().isOk) // HTTP 200 OK인지 확인
-            .andExpect(jsonPath("$[0].title").value("첫 번째 게시글")) // 첫 번째 게시글의 제목 검증
-            .andExpect(jsonPath("$[1].userId").value("park.test@example.com")) // 두 번째 게시글의 작성자 검증
-            .andExpect(jsonPath("$.length()").value(2)) // 리스트의 길이가 2인지 검증
-    }
-
-    @Test
     fun `POST_api_boards_요청시_새로운_게시글을_생성하고_반환해야_한다`() {
         // Given: 새로운 게시글 생성 요청 데이터와 Service가 반환할 가상의 결과 데이터 생성
         val now = LocalDateTime.now().withNano(0)

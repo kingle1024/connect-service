@@ -4,7 +4,6 @@ import com.connect.service.board.repository.BoardRepository
 import com.connect.service.comment.domain.ReplyDto
 import com.connect.service.comment.domain.ReplyEntity
 import com.connect.service.comment.repository.ReplyRepository
-import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
@@ -12,22 +11,20 @@ import kotlin.IllegalArgumentException
 import com.connect.service.comment.domain.toReplyDto
 
 @Service
-@Transactional(readOnly = true) // 읽기 전용 트랜잭션, 쓰기는 @Transactional 별도 적용
+@Transactional(readOnly = true)
 class CommentService(
     private val replyRepository: ReplyRepository,
-    private val commentMstRepository: CommentMstRepository,
-    private val commentDtlRepository: CommentDtlRepository,
-    private val boardRepository: BoardRepository // 게시글 존재 여부 확인용 (BoardRepository가 필요해)
+    private val boardRepository: BoardRepository
 ) {
 
-    fun getCommentsByBoardId(boardId: Long): List<ReplyDto> { // 반환 타입 변경!
+    fun getCommentsByBoardId(boardId: Long): List<ReplyDto> {
         val allReplies = replyRepository.findAllByPostIdOrderByInsertDtsAsc(boardId)
         val replyMap = allReplies
             .associateBy { it.id }
             .mapValues { (_, entity: ReplyEntity) -> entity.toReplyDto(boardId) }
             .toMutableMap()
 
-        val topLevelReplies = mutableListOf<ReplyDto>() // 타입 변경!
+        val topLevelReplies = mutableListOf<ReplyDto>()
         for (replyEntity in allReplies) {
             val currentReplyDto = replyMap[replyEntity.id]!!
             if (replyEntity.parentReplyId == null) {
