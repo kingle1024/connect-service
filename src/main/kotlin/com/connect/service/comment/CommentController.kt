@@ -22,13 +22,13 @@ class CommentController(private val commentService: CommentService) {
     }
 
     // 댓글 수정
-    @PutMapping("/{commentId}")
+    @PutMapping("/{replyId}")
     fun updateComment(
         @PathVariable boardId: Long,
-        @PathVariable commentId: Long,
+        @PathVariable replyId: Int,
         @RequestBody request: UpdateCommentRequest
-    ): CommentResponse {
-        return commentService.updateComment(boardId, commentId, request)
+    ): ReplyDto {
+        return commentService.updateComment(boardId, replyId, request)
     }
 
     // 댓글 삭제
