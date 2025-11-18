@@ -12,7 +12,6 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
 import com.connect.service.board.dto.UpdateBoardRequest
 import com.connect.service.board.entity.BoardMst
 import com.connect.service.board.service.BoardService
-import org.mockito.InjectMocks
 import org.springframework.http.MediaType
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
@@ -72,13 +71,15 @@ class BoardControllerTest {
 
         // When & Then: POST 요청을 보내고 결과 검증
         mockMvc.perform(post("/api/boards")
+            .with(user("initialUserId"))
+            .with(csrf())
             .contentType(MediaType.APPLICATION_JSON) // 요청 타입이 JSON이라고 명시
             .content(objectMapper.writeValueAsString(request))) // 요청 본문을 JSON 문자열로 변환하여 전송
-//            .andExpect(status().isOk) // HTTP 200 OK인지 확인
-//            .andExpect(jsonPath("$.id").value(3L)) // 생성된 게시글의 ID 검증
-//            .andExpect(jsonPath("$.title").value("새 게시글 제목")) // 제목 검증
-//            .andExpect(jsonPath("$.content").value("새 게시글 내용")) // 내용 검증
-//            .andExpect(jsonPath("$.userId").value("new.user@example.com")) // 작성자 검증
+            .andExpect(status().isOk) // HTTP 200 OK인지 확인
+            .andExpect(jsonPath("$.id").value(3L)) // 생성된 게시글의 ID 검증
+            .andExpect(jsonPath("$.title").value("새 게시글 제목")) // 제목 검증
+            .andExpect(jsonPath("$.content").value("새 게시글 내용")) // 내용 검증
+            .andExpect(jsonPath("$.userId").value("new.user@example.com")) // 작성자 검증
     }
 
     @Test
@@ -167,6 +168,8 @@ class BoardControllerTest {
             .willThrow(NoSuchElementException("Board with ID $nonExistentId not found"))
 
         mockMvc.perform(put("/api/boards/{id}", nonExistentId)
+            .with(user("initialUserId")) // 로그인한 사용자 정보 (initialUserId를 `author`로 사용)
+            .with(csrf())               // CSRF 토큰 추가 (PUT 요청이므로 필수)
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(updateRequest)))
             .andExpect(status().isNotFound) // 404 Not Found 반환 검증
@@ -191,6 +194,8 @@ class BoardControllerTest {
         // 다만, verify를 통해 호출되지 않았음을 명시적으로 확인할 수 있다.
 
         mockMvc.perform(put("/api/boards/{id}", pathId)
+            .with(user("initialUserId")) // 로그인한 사용자 정보 (initialUserId를 `author`로 사용)
+            .with(csrf())               // CSRF 토큰 추가 (PUT 요청이므로 필수)
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(updateRequest)))
             .andExpect(status().isBadRequest) // 400 Bad Request 반환 검증
