@@ -23,9 +23,11 @@ import org.springframework.web.bind.annotation.*
 import java.time.LocalDateTime
 import java.time.ZoneId
 import mu.KotlinLogging
+import org.springframework.security.core.Authentication
 
 @RestController
 @RequestMapping("/api/auth")
+@CrossOrigin
 class AuthController(
     private val authenticationManager: AuthenticationManager,
     private val jwtTokenProvider: JwtTokenProvider,
@@ -60,9 +62,15 @@ class AuthController(
         @RequestBody loginRequest: LoginRequest,
         request: HttpServletRequest
     ): ResponseEntity<AuthResponse> {
-        val authentication = authenticationManager.authenticate(
-            UsernamePasswordAuthenticationToken(loginRequest.userId, loginRequest.password)
-        )
+        val authentication: Authentication
+        try {
+            authentication = authenticationManager.authenticate(
+                UsernamePasswordAuthenticationToken(loginRequest.userId, loginRequest.password)
+            )
+        } catch (ex: Exception) {
+            log.warn("로그인 실패: 사용자 ID = {}, 이유 = {}", loginRequest.userId, ex.message)
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(AuthResponse("", "", "Invalid credentials"))
+        }
 
         SecurityContextHolder.getContext().authentication = authentication
 
