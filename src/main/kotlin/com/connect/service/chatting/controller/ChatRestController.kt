@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController
 
 @RestController
 @RequestMapping("/api/chat")
-@CrossOrigin
+@CrossOrigin(origins = ["http://localhost:3000", "http://localhost:8082"], allowCredentials = "true")
 class ChatRestController(
     private val chatRoomService: ChatRoomService,
     private val chatMessageService: ChatMessageService
