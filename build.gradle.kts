@@ -6,6 +6,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.jpa") version "1.9.25"
     id("org.springframework.boot") version "3.5.4"
     id("io.spring.dependency-management") version "1.1.7"
+    id("org.jetbrains.kotlin.kapt") version "1.9.25"
 }
 
 group = "com.connect.service"
@@ -37,6 +38,13 @@ dependencies {
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("io.github.microutils:kotlin-logging:3.0.5")
+
+    implementation("com.querydsl:querydsl-jpa:5.0.0:jakarta")
+    implementation("com.querydsl:querydsl-core:5.0.0")
+    kapt("com.querydsl:querydsl-apt:5.0.0:jakarta")
+    kapt("jakarta.persistence:jakarta.persistence-api")
+    kapt("jakarta.annotation:jakarta.annotation-api")
+
     testImplementation("org.springframework.restdocs:spring-restdocs-mockmvc")
     testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
@@ -48,6 +56,12 @@ dependencies {
 kotlin {
     compilerOptions {
         freeCompilerArgs.addAll(listOf("-Xjsr305=strict"))
+    }
+}
+
+kapt {
+    arguments {
+        arg("querydsl.entityAnnotation", "jakarta.persistence.Entity")
     }
 }
 

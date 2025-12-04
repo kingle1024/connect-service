@@ -1,5 +1,6 @@
 package com.connect.service.chatting.service
 
+import com.connect.service.chatting.dto.ChatRoomDto
 import com.connect.service.chatting.repository.RoomMembershipRepository
 import com.connect.service.chatting.entity.ChatRoom
 import com.connect.service.chatting.entity.RoomMembership
@@ -9,13 +10,6 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
 import java.util.concurrent.ConcurrentHashMap
-
-data class ChatRoomDto(
-    val id: String, // 채팅방 ID
-    val name: String, // 채팅방 이름
-    val leaderId: String, // 방장 ID
-    val participantsCount: Long // 참여자 수를 포함 (채팅방 목록 화면에 표시하기 위함)
-)
 
 @Service
 class ChatRoomService (
@@ -91,6 +85,11 @@ class ChatRoomService (
                    participantsCount = participantsCount
                )
            }.toList() // List<ChatRoomDto>로 최종 반환
+    }
+
+    @Transactional(readOnly = true)
+    fun getOneToOneRoomsForUser(userId: String): List<ChatRoomDto> {
+        return chatRoomRepository.findOneToOneRoomsByUserId(userId)
     }
 
     // 방장 확인 로직
