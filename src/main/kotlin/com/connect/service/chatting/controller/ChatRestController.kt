@@ -25,21 +25,21 @@ class ChatRestController(
     @PostMapping("/rooms")
     fun createChatRoom(
         @RequestBody request: CreateChatRoomRequest
-    ): String {
+    ): CreateChatRoomRequest? {
         var added = false
 
         if (request.userId.contains("|")) {
             request.userId.split("|").forEach { uid ->
-                added = chatRoomService.addParticipant(request.roomId, uid, request.roomName)
+                added = chatRoomService.addParticipant(request.roomId, uid, request.roomName, request.roomType)
             }
         } else {
-            added = chatRoomService.addParticipant(request.roomId, request.userId, request.roomName)
+            added = chatRoomService.addParticipant(request.roomId, request.userId, request.roomName, request.roomType)
         }
 
         return if (added) {
-            "채팅방 $request.roomId 에 사용자 $request.userId 가 성공적으로 추가되었습니다."
+            request
         } else {
-            "사용자 $request.userId 는 이미 채팅방 $request.roomId 의 멤버입니다."
+            null
         }
     }
 
