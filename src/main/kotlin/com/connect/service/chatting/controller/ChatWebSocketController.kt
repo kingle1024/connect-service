@@ -1,5 +1,7 @@
 package com.connect.service.chatting.controller
 
+import com.connect.service.chatting.dto.ChatAddUserDto
+import com.connect.service.chatting.dto.ChatInviteUserDto
 import com.connect.service.chatting.dto.ChatMessageDto
 import com.connect.service.chatting.enums.MessageType
 import com.connect.service.chatting.service.ChatMessageService
@@ -14,7 +16,7 @@ import java.time.LocalDateTime
 import kotlin.collections.set
 
 @Controller
-@CrossOrigin
+@CrossOrigin(origins = ["http://localhost:3000", "http://localhost:8082"], allowCredentials = "true")
 class ChatWebSocketController (
     private val messagingTemplate: SimpMessagingTemplate,
     private val chatRoomService: ChatRoomService,
@@ -49,16 +51,17 @@ class ChatWebSocketController (
     }
 
     @MessageMapping("/chat.addUser")
-    fun addUser(@Payload chatMessageDto: ChatMessageDto, headerAccessor: SimpMessageHeaderAccessor) {
-        val userId = chatMessageDto.sender // 메시지 보낸 사람 = 입장하는 유저
-        val roomId = chatMessageDto.roomId
-        val roomName = chatMessageDto.roomName
+    fun addUser(@Payload chatAddUser: ChatAddUserDto, headerAccessor: SimpMessageHeaderAccessor) {
+        val userId = chatAddUser.sender // 메시지 보낸 사람 = 입장하는 유저
+        val roomId = chatAddUser.roomId
+        val roomName = chatAddUser.roomName
+        val roomType = chatAddUser.roomType
 
         headerAccessor.sessionAttributes!!["username"] = userId
         headerAccessor.sessionAttributes!!["roomId"] = roomId
         println("유저 입장 - 방: $roomId, 유저: $userId")
 
-        val added = chatRoomService.addParticipant(roomId, userId, roomName)
+        val added = chatRoomService.addParticipant(roomId, userId, roomName, roomType)
 
         if (added) {
             println("유저 추가됨 - 방: $roomId, 유저: $userId, 방 이름: $roomName")
@@ -77,11 +80,12 @@ class ChatWebSocketController (
     }
 
     @MessageMapping("/chat.inviteUser")
-    fun inviteUser(@Payload chatMessageDto: ChatMessageDto) {
-        val sender = chatMessageDto.sender // 초대하는 사람
-        val recipient = chatMessageDto.recipient // 초대받는 사람
-        val roomId = chatMessageDto.roomId
-        val roomName = chatMessageDto.roomName ?: chatRoomService.getRoom(roomId)?.roomName ?: roomId
+    fun inviteUser(@Payload chatInviteUser: ChatInviteUserDto) {
+        val sender = chatInviteUser.sender // 초대하는 사람
+        val recipient = chatInviteUser.recipient // 초대받는 사람
+        val roomId = chatInviteUser.roomId
+        val roomName = chatInviteUser.roomName ?: chatRoomService.getRoom(roomId)?.roomName ?: roomId
+        val roomType = chatInviteUser.roomType
 
         if (!chatRoomService.isRoomLeader(roomId, sender)) {
             messagingTemplate.convertAndSendToUser(
@@ -95,7 +99,7 @@ class ChatWebSocketController (
              return
         }
 
-        val addedToRoom = chatRoomService.addParticipant(roomId, recipient!!, roomName)
+        val addedToRoom = chatRoomService.addParticipant(roomId, recipient!!, roomName, roomType)
 
         if (addedToRoom) { // 성공적으로 추가되었다면 (새로 멤버가 되었다면)
             // 초대받는 사람에게 초대 알림 메시지 발송
