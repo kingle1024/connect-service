@@ -5,6 +5,7 @@ import com.connect.service.chatting.repository.RoomMembershipRepository
 import com.connect.service.chatting.entity.ChatRoom
 import com.connect.service.chatting.entity.RoomMembership
 import com.connect.service.chatting.entity.RoomMembershipId
+import com.connect.service.chatting.enums.RoomType
 import com.connect.service.chatting.repository.ChatRoomRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -20,7 +21,12 @@ class ChatRoomService (
     private val chatRooms: ConcurrentHashMap<String, ChatRoom> = ConcurrentHashMap()
 
     @Transactional // 이 메서드 전체를 하나의 DB 트랜잭션으로 묶음
-    fun addParticipant(roomId: String, userId: String, roomName: String?, roomType: String): Boolean {
+    fun addParticipant(
+        roomId: String,
+        userId: String,
+        roomName: String?,
+        roomType: String?
+    ): Boolean {
        // 1. ChatRoom 존재 여부 확인 및 생성
        // findById(roomId)로 방을 찾고, 없으면 orElseGet{} 람다식을 실행하여 새 방을 생성
        val chatRoom = chatRoomRepository.findById(roomId).orElseGet {
@@ -28,7 +34,7 @@ class ChatRoomService (
            val newRoom = ChatRoom(
                roomId = roomId,
                roomName = roomName ?: "채팅방 $roomId", // 프론트에서 roomName을 보냈다면 사용, 아니면 기본 이름 설정
-               roomType = roomType,
+               roomType = (roomType ?: RoomType.GROUP) as String,
                leaderUserId = userId, // 방장을 방을 처음 생성한 유저로 설정
                createdAt = LocalDateTime.now() // 생성 시간 설정
            )
