@@ -4,6 +4,7 @@ import com.connect.service.chatting.dto.ChatAddUserDto
 import com.connect.service.chatting.dto.ChatInviteUserDto
 import com.connect.service.chatting.dto.ChatMessageDto
 import com.connect.service.chatting.enums.MessageType
+import com.connect.service.chatting.enums.RoomType
 import com.connect.service.chatting.service.ChatMessageService
 import com.connect.service.chatting.service.ChatRoomService
 import org.springframework.messaging.handler.annotation.MessageMapping
@@ -55,13 +56,13 @@ class ChatWebSocketController (
         val userId = chatAddUser.sender // 메시지 보낸 사람 = 입장하는 유저
         val roomId = chatAddUser.roomId
         val roomName = chatAddUser.roomName
-        val roomType = chatAddUser.roomType
+        val roomType = chatAddUser.roomType?: RoomType.GROUP
 
         headerAccessor.sessionAttributes!!["username"] = userId
         headerAccessor.sessionAttributes!!["roomId"] = roomId
         println("유저 입장 - 방: $roomId, 유저: $userId")
 
-        val added = chatRoomService.addParticipant(roomId, userId, roomName, roomType)
+        val added = chatRoomService.addParticipant(roomId, userId, roomName, roomType.toString())
 
         if (added) {
             println("유저 추가됨 - 방: $roomId, 유저: $userId, 방 이름: $roomName")
