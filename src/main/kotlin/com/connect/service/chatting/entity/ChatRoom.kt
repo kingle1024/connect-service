@@ -16,7 +16,7 @@ data class ChatRoom(
     @Column(name = "room_name", nullable = false)
     var roomName: String, // 채팅방 이름
 
-    @Column(name = "roomType", nullable = false)
+    @Column(name = "roomType", nullable = true)
     var roomType: String, // 채팅방 유형
 
     @Column(name = "leader_user_id", nullable = false)

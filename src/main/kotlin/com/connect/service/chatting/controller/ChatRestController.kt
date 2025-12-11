@@ -1,6 +1,7 @@
 package com.connect.service.chatting.controller
 
 import com.connect.service.chatting.dto.ChatMessageDto
+import com.connect.service.chatting.dto.ChatOneToOneRoomDto
 import com.connect.service.chatting.dto.ChatRoomDto
 import com.connect.service.chatting.dto.CreateChatRoomRequest
 import com.connect.service.chatting.service.ChatMessageService
@@ -50,7 +51,7 @@ class ChatRestController(
     }
 
     @GetMapping("/one-to-one-rooms")
-    fun oneToOneRooms(@RequestParam userId: String): List<ChatRoomDto> {
+    fun oneToOneRooms(@RequestParam userId: String): List<ChatOneToOneRoomDto> {
         println("1:1 채팅방 목록 요청 - 사용자 ID: $userId")
         return chatRoomService.getOneToOneRoomsForUser(userId)
     }
