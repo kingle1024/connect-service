@@ -1,5 +1,6 @@
 package com.connect.service.chatting.service
 
+import com.connect.service.chatting.dto.ChatOneToOneRoomDto
 import com.connect.service.chatting.dto.ChatRoomDto
 import com.connect.service.chatting.repository.RoomMembershipRepository
 import com.connect.service.chatting.entity.ChatRoom
@@ -95,7 +96,7 @@ class ChatRoomService (
     }
 
     @Transactional(readOnly = true)
-    fun getOneToOneRoomsForUser(userId: String): List<ChatRoomDto> {
+    fun getOneToOneRoomsForUser(userId: String): List<ChatOneToOneRoomDto> {
         return chatRoomRepository.findOneToOneRoomsByUserId(userId)
     }
 
