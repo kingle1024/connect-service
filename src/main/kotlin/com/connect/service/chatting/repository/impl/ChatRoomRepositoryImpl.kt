@@ -25,13 +25,14 @@ class ChatRoomRepositoryImpl(
             .select(
                 chatRoom.roomId,
                 chatRoom.roomName,
-                chatRoom.leaderUserId
+                roomMembership.id.userId
             )
             .from(chatRoom)
             .join(roomMembership).on(chatRoom.roomId.eq(roomMembership.id.roomId))
-            .where(roomMembership.id.userId.eq(userId))
-            .groupBy(chatRoom.roomId, chatRoom.roomName, chatRoom.leaderUserId)
-            .having(roomMembership.id.roomId.count().eq(2L))
+            .where(
+                roomMembership.id.userId.ne(userId)
+                    .and(chatRoom.roomType.eq(RoomType.ONE_TO_ONE.toString()))
+            )
             .fetch()
 
         return resultTuples.map { tuple ->
