@@ -34,9 +34,9 @@ class ChatRoomService (
            // 방이 없으면 새로운 방을 생성하고 초기 정보 설정
            val newRoom = ChatRoom(
                roomId = roomId,
-               roomName = roomName ?: "채팅방 $roomId", // 프론트에서 roomName을 보냈다면 사용, 아니면 기본 이름 설정
                roomType = (roomType ?: RoomType.GROUP) as String,
                leaderUserId = userId, // 방장을 방을 처음 생성한 유저로 설정
+               roomName = roomName,
                createdAt = LocalDateTime.now() // 생성 시간 설정
            )
            chatRoomRepository.save(newRoom) // 생성된 새 방을 DB에 저장
@@ -50,6 +50,7 @@ class ChatRoomService (
            val newMembership = RoomMembership(
                id = membershipId, // 복합 키
                chatRoom = chatRoom, // 관계 매핑된 ChatRoom 엔티티
+               roomName = roomName,
                joinedAt = LocalDateTime.now() // 참여 시간 기록
            )
            roomMembershipRepository.save(newMembership) // 새로운 멤버십을 DB에 저장
