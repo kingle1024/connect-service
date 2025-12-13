@@ -8,7 +8,6 @@ data class ChatAddUserDto (
     val type: MessageType,
     val roomId: String,
     val sender: String,
-    var content: String? = null,
     var roomType: String? = null,
     var recipient: String? = null,
     val roomName: String? = null,
