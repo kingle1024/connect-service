@@ -85,7 +85,7 @@ class ChatWebSocketController (
         val sender = chatInviteUser.sender // 초대하는 사람
         val recipient = chatInviteUser.recipient // 초대받는 사람
         val roomId = chatInviteUser.roomId
-        val roomName = chatInviteUser.roomName ?: chatRoomService.getRoom(roomId)?.roomName ?: roomId
+        val roomName = chatInviteUser.roomName
         val roomType = chatInviteUser.roomType
 
         if (!chatRoomService.isRoomLeader(roomId, sender)) {

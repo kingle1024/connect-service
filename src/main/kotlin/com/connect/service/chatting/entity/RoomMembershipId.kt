@@ -1,6 +1,5 @@
 package com.connect.service.chatting.entity
 
-import com.connect.service.chatting.entity.ChatRoom
 import jakarta.persistence.*
 import java.io.Serializable // 복합 키를 위해 필요
 import java.time.LocalDateTime
@@ -24,6 +23,9 @@ data class RoomMembership(
     @MapsId("roomId") // RoomMembershipId의 roomId 필드에 매핑
     @JoinColumn(name = "room_id", referencedColumnName = "room_id") // 실제 DB 컬럼 매핑
     val chatRoom: ChatRoom, // 이 멤버십이 속한 채팅방 엔티티
+
+    @Column(name = "room_name")
+    var roomName: String?,
 
     @Column(name = "joined_at", nullable = false)
     val joinedAt: LocalDateTime = LocalDateTime.now() // 참여 시간

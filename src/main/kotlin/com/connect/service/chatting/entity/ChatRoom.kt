@@ -14,7 +14,7 @@ data class ChatRoom(
     val roomId: String, // 채팅방 고유 ID
 
     @Column(name = "room_name", nullable = false)
-    var roomName: String, // 채팅방 이름
+    var roomName: String?, // 채팅방 이름
 
     @Column(name = "roomType", nullable = true)
     var roomType: String, // 채팅방 유형
