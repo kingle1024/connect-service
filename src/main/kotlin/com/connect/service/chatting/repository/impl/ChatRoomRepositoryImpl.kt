@@ -37,9 +37,9 @@ class ChatRoomRepositoryImpl(
 
         return resultTuples.map { tuple ->
             ChatOneToOneRoomDto(
-                id = tuple.get(chatRoom.roomId) ?: "", // Nullable 고려
                 name = tuple.get(chatRoom.roomName) ?: "",
                 userId = tuple.get(roomMembership.id.userId) ?: "",
+                roomId = tuple.get(chatRoom.roomId) ?: "",
             )
         }
     }

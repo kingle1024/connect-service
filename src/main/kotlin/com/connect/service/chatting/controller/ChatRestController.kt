@@ -3,6 +3,8 @@ package com.connect.service.chatting.controller
 import com.connect.service.chatting.dto.ChatMessageDto
 import com.connect.service.chatting.dto.ChatOneToOneRoomDto
 import com.connect.service.chatting.dto.ChatRoomDto
+import com.connect.service.chatting.dto.ChatRoomParticipantReq
+import com.connect.service.chatting.dto.ChatRoomParticipantRes
 import com.connect.service.chatting.dto.CreateChatRoomRequest
 import com.connect.service.user.dto.CustomUserDto
 import com.connect.service.chatting.service.ChatMessageService
@@ -60,6 +62,12 @@ class ChatRestController(
     fun getChatRoomsForUser(@RequestParam userId: String): List<ChatRoomDto> {
         println("채팅방 목록 요청 - 사용자 ID: $userId")
         return chatRoomService.getRoomsForUser(userId)
+    }
+
+    @PostMapping("/rooms/participants")
+    fun getRoomParticipants(@RequestBody request: ChatRoomParticipantReq): List<ChatRoomParticipantRes> {
+        println("채팅방 사용자 목록 요청 - ROOM ID: ${request.roomId}")
+        return chatRoomService.getRoomsForRoomId(request.roomId)
     }
 
     @GetMapping("/one-to-one-rooms")

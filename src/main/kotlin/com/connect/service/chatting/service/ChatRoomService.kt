@@ -2,6 +2,7 @@ package com.connect.service.chatting.service
 
 import com.connect.service.chatting.dto.ChatOneToOneRoomDto
 import com.connect.service.chatting.dto.ChatRoomDto
+import com.connect.service.chatting.dto.ChatRoomParticipantRes
 import com.connect.service.chatting.repository.RoomMembershipRepository
 import com.connect.service.chatting.entity.ChatRoom
 import com.connect.service.chatting.entity.RoomMembership
@@ -94,6 +95,18 @@ class ChatRoomService (
                    participantsCount = participantsCount
                )
            }.toList() // List<ChatRoomDto>로 최종 반환
+    }
+
+    @Transactional(readOnly = true)
+    fun getRoomsForRoomId(roomId: String): List<ChatRoomParticipantRes> {
+       return roomMembershipRepository.findByIdRoomId(roomId)
+           .map { membership ->
+               val chatRoom = membership.chatRoom
+               ChatRoomParticipantRes(
+                   roomId = chatRoom.roomId,
+                   userId = membership.id.userId
+               )
+           }.toList()
     }
 
     @Transactional(readOnly = true)
