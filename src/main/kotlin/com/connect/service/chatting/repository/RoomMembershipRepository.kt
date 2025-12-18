@@ -9,7 +9,7 @@ import org.springframework.stereotype.Repository
 interface RoomMembershipRepository : JpaRepository<RoomMembership, RoomMembershipId> {
     // userId로 모든 멤버십을 조회
     fun findByIdUserId(userId: String): List<RoomMembership>
-
+    fun findByIdRoomId(roomId: String): List<RoomMembership>
     // 특정 방의 멤버십 개수를 세는 쿼리
     fun countByIdRoomId(roomId: String): Long
 
