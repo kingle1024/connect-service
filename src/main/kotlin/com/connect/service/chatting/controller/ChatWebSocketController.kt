@@ -87,7 +87,6 @@ class ChatWebSocketController (
         val sender = chatInviteUser.sender // 초대하는 사람
         val recipient = chatInviteUser.recipient // 초대받는 사람
         val roomId = chatInviteUser.roomId
-        val roomType = chatInviteUser.roomType
 
         if (!chatRoomService.isRoomLeader(roomId, sender)) {
             messagingTemplate.convertAndSendToUser(
@@ -115,7 +114,7 @@ class ChatWebSocketController (
             chatRoom!!.roomName!! // chatRoom 자체도 non-null, 그 안의 roomName도 non-null임을 명시
         }
 
-        val addedToRoom = chatRoomService.addParticipant(roomId, recipient!!, roomName, roomType)
+        val addedToRoom = chatRoomService.addParticipant(roomId, recipient!!, chatRoom?.roomName, chatRoom?.roomType)
 
         if (addedToRoom) { // 성공적으로 추가되었다면 (새로 멤버가 되었다면)
             // 초대받는 사람에게 초대 알림 메시지 발송
