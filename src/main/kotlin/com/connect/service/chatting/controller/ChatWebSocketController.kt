@@ -7,6 +7,7 @@ import com.connect.service.chatting.enums.MessageType
 import com.connect.service.chatting.enums.RoomType
 import com.connect.service.chatting.service.ChatMessageService
 import com.connect.service.chatting.service.ChatRoomService
+import com.connect.service.user.service.CustomUserDetailsService
 import org.springframework.messaging.handler.annotation.MessageMapping
 import org.springframework.messaging.handler.annotation.Payload
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor
@@ -22,6 +23,7 @@ class ChatWebSocketController (
     private val messagingTemplate: SimpMessagingTemplate,
     private val chatRoomService: ChatRoomService,
     private val chatMessageService: ChatMessageService,
+    private val userService: CustomUserDetailsService,
 ) {
     @MessageMapping("/chat.sendMessage")
     fun sendMessage(@Payload chatMessageDto: ChatMessageDto) {
@@ -85,8 +87,6 @@ class ChatWebSocketController (
         val sender = chatInviteUser.sender // 초대하는 사람
         val recipient = chatInviteUser.recipient // 초대받는 사람
         val roomId = chatInviteUser.roomId
-        val roomName = chatInviteUser.roomName
-        val roomType = chatInviteUser.roomType
 
         if (!chatRoomService.isRoomLeader(roomId, sender)) {
             messagingTemplate.convertAndSendToUser(
@@ -99,8 +99,22 @@ class ChatWebSocketController (
                 sender, "/queue/errors", "채팅방 ${roomId}는 존재하지 않습니다.")
              return
         }
+        // 방 이름
+        val chatRoom = chatRoomService.findByRoomId(roomId)
+        val roomName: String = if (chatRoom?.roomName.isNullOrBlank()) {
+            // chatRoom?.roomName이 null이거나 비어있을 경우 (또는 chatRoom 자체가 null일 경우)
+            val userIds = chatRoomService.getRoomsForRoomId(roomId)
+            val userIdList: MutableList<String> = mutableListOf()
+            for (user in userIds) {
+                userIdList.add(user.userId)
+            }
+            val userItems = userService.getRoomMemberShipByUserIds(userIdList)
+            userItems.map { it.value.name }.joinToString(",")
+        } else {
+            chatRoom!!.roomName!! // chatRoom 자체도 non-null, 그 안의 roomName도 non-null임을 명시
+        }
 
-        val addedToRoom = chatRoomService.addParticipant(roomId, recipient!!, roomName, roomType)
+        val addedToRoom = chatRoomService.addParticipant(roomId, recipient!!, chatRoom?.roomName, chatRoom?.roomType)
 
         if (addedToRoom) { // 성공적으로 추가되었다면 (새로 멤버가 되었다면)
             // 초대받는 사람에게 초대 알림 메시지 발송
@@ -108,7 +122,7 @@ class ChatWebSocketController (
                 "sender" to sender,
                 "roomId" to roomId,
                 "roomName" to roomName,
-                "message" to "${sender}님이 ${roomName} 방으로 당신을 초대했습니다."
+                "message" to "${sender}님이 방으로 당신을 초대했습니다."
             )
             messagingTemplate.convertAndSendToUser(
                 recipient, // 받는 사람의 User Queue로 메시지 전송
@@ -118,17 +132,17 @@ class ChatWebSocketController (
 
             // 모든 방 참가자에게 누가 누구를 초대했는지 알림 (채팅방 내 시스템 메시지)
             messagingTemplate.convertAndSend("/topic/chat/$roomId",
-                ChatMessageDto(null, MessageType.INVITE, roomId, sender, recipient = recipient, roomName = roomName)
+                ChatMessageDto(null, MessageType.INVITE, roomId, sender, recipient = recipient, roomName = "1234")
             )
 
-            println("초대 성공: ${sender}님이 ${recipient}님을 ${roomName} 방으로 초대했습니다. DB에 멤버십 추가 완료.")
+            println("초대 성공: ${sender}님이 ${recipient}님을 초대했습니다. DB에 멤버십 추가 완료.")
 
         } else { // 이미 방의 멤버인 경우
             // 초대자에게 이미 멤버라고 알려줌
             messagingTemplate.convertAndSendToUser(
-                sender, "/queue/errors", "${recipient}님은 이미 ${roomName} 방의 멤버입니다."
+                sender, "/queue/errors", "${recipient}님은 이미 방의 멤버입니다."
             )
-            println("초대 실패: ${recipient}님은 이미 ${roomName} 방의 멤버입니다.")
+            println("초대 실패: ${recipient}님은 이미 방의 멤버입니다.")
         }
     }
 

@@ -109,6 +109,17 @@ class ChatRoomService (
            }.toList()
     }
 
+
+
+    fun findByRoomId(roomId: String): ChatRoom? {
+        val chatRoom = chatRoomRepository.findById(roomId)
+        return if(chatRoom.isPresent) {
+            chatRoom.get()
+        } else {
+            null
+        }
+    }
+
     @Transactional(readOnly = true)
     fun getOneToOneRoomsForUser(userId: String): List<ChatOneToOneRoomDto> {
         return chatRoomRepository.findOneToOneRoomsByUserId(userId)

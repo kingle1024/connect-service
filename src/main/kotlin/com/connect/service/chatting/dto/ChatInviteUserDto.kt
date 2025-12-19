@@ -1,7 +1,6 @@
 package com.connect.service.chatting.dto
 
 import com.connect.service.chatting.enums.MessageType
-import java.time.LocalDateTime
 
 data class ChatInviteUserDto (
     val id: String? = null,
@@ -9,8 +8,7 @@ data class ChatInviteUserDto (
     val roomId: String,
     val sender: String,
     var content: String? = null,
-    var roomType: String,
+    var roomType: String? = null,
     var recipient: String? = null,
     val roomName: String? = null,
-    var insertDts: LocalDateTime? = null,
 )
