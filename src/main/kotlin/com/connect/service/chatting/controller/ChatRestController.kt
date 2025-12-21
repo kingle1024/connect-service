@@ -6,14 +6,19 @@ import com.connect.service.chatting.dto.ChatRoomDto
 import com.connect.service.chatting.dto.ChatRoomParticipantReq
 import com.connect.service.chatting.dto.ChatRoomParticipantRes
 import com.connect.service.chatting.dto.CreateChatRoomRequest
+import com.connect.service.chatting.dto.RoomNameUpdateRequest
+import com.connect.service.chatting.entity.ChatRoom
 import com.connect.service.user.dto.CustomUserDto
 import com.connect.service.chatting.service.ChatMessageService
 import com.connect.service.chatting.service.ChatRoomService
 import com.connect.service.user.service.CustomUserDetailsService
+import org.springframework.http.HttpStatus
+import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.CrossOrigin
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
@@ -80,5 +85,16 @@ class ChatRestController(
     fun getRoomMessages(@PathVariable roomId: String): List<ChatMessageDto> {
         return chatMessageService.getChatHistoryForRoom(roomId)
              .takeLast(50)
+    }
+
+    @PutMapping("/rooms/name")
+    fun updateChatRoomName(@RequestBody request: RoomNameUpdateRequest): ResponseEntity<ChatRoom> {
+        val updatedChatRoom = chatRoomService.updateRoomName(request.roomId, request.roomName)
+
+        return if (updatedChatRoom != null) {
+            ResponseEntity.ok(updatedChatRoom)
+        } else {
+            ResponseEntity.status(HttpStatus.NOT_FOUND).build()
+        }
     }
 }
