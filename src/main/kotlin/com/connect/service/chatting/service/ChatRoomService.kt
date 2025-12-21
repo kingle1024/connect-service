@@ -9,6 +9,7 @@ import com.connect.service.chatting.entity.RoomMembership
 import com.connect.service.chatting.entity.RoomMembershipId
 import com.connect.service.chatting.enums.RoomType
 import com.connect.service.chatting.repository.ChatRoomRepository
+import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
@@ -139,4 +140,18 @@ class ChatRoomService (
      fun getRoom(roomId: String): ChatRoom? {
          return chatRoomRepository.findById(roomId).orElse(null)
      }
+
+    @Transactional
+    fun updateRoomName(roomId: String, newRoomName: String): ChatRoom? {
+        // roomId로 ChatRoom 엔티티를 찾습니다.
+        val chatRoom = chatRoomRepository.findByIdOrNull(roomId) // @Id로 지정된 roomId 필드를 사용하여 찾음
+
+        return if (chatRoom != null) {
+            // 방을 찾았다면 이름을 업데이트합니다.
+            chatRoom.roomName = newRoomName // ⬅️ ChatRoom 엔티티의 roomName 필드에 대입
+            chatRoomRepository.save(chatRoom) // 변경된 엔티티 저장
+        } else {
+            null // 해당하는 방이 없는 경우
+        }
+    }
 }
