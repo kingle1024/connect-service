@@ -88,10 +88,10 @@ class FriendService(
                 ?: throw IllegalStateException("요청을 보낸 사용자를 찾을 수 없습니다: ${request.senderId}")
             FriendRequestReceivedResponse(
                 id = request.id,
+                name = sender.name,
                 senderUserId = request.senderId,
-                senderNickname = sender.name, // users 테이블의 name 필드를 닉네임으로 사용 (주어진 Users 엔티티에 nickname 필드가 없으므로 name 사용)
+                receiverId = request.receiverId,
                 status = request.status.name,
-                createdAt = request.createdAt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
             )
         }
     }
