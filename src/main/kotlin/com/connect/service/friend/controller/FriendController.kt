@@ -31,7 +31,7 @@ class FriendController(
     @PutMapping("/friend-requests/{requestId}/process")
     fun processFriendRequest(
         @PathVariable currentUserId: String,
-        @PathVariable requestId: Long,
+        @PathVariable requestId: String,
         @RequestBody processDto: FriendRequestProcessDto
     ): ResponseEntity<Any> {
         return try {

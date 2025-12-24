@@ -53,8 +53,8 @@ class FriendService(
     }
 
     @Transactional
-    fun processFriendRequest(currentUserId: String, requestId: Long, processDto: FriendRequestProcessDto): FriendRequest {
-        val friendRequest = friendRequestRepository.findByIdOrNull(requestId)
+    fun processFriendRequest(currentUserId: String, requestId: String, processDto: FriendRequestProcessDto): FriendRequest {
+        val friendRequest = friendRequestRepository.findBySenderId(requestId)
             ?: throw IllegalArgumentException("친구 요청을 찾을 수 없습니다.")
 
         if (friendRequest.receiverId != currentUserId) {
@@ -89,7 +89,7 @@ class FriendService(
             FriendRequestReceivedResponse(
                 id = request.id,
                 name = sender.name,
-                senderUserId = request.senderId,
+                senderId = request.senderId,
                 receiverId = request.receiverId,
                 status = request.status.name,
             )
