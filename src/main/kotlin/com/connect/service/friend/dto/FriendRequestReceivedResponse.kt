@@ -4,7 +4,7 @@ package com.connect.service.friend.dto
 data class FriendRequestReceivedResponse(
     val id: Long,
     val name: String,
-    val senderUserId: String, // 요청을 보낸 사용자 ID (String)
+    val senderId: String,
     val receiverId: String,
     val status: String,
 )

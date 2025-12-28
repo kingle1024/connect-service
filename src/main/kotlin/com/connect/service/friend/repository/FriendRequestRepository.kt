@@ -8,5 +8,6 @@ import org.springframework.stereotype.Repository
 @Repository
 interface FriendRequestRepository : JpaRepository<FriendRequest, Long> {
     fun findBySenderIdAndReceiverId(senderId: String, receiverId: String): FriendRequest?
+    fun findBySenderId(senderId: String): FriendRequest?
     fun findByReceiverIdAndStatus(receiverId: String, status: FriendRequestStatus): List<FriendRequest>
 }

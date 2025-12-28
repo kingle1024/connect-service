@@ -56,7 +56,7 @@ class CommentService(
                 postId = boardId,
                 userId = request.userId,
                 userName = request.userName,
-                title = request.title,
+                title = null,
                 content = request.content,
                 insertDts = LocalDateTime.now(),
                 parentReplyId = null
