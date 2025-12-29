@@ -24,7 +24,7 @@ class FriendController(
             val friendRequest = friendService.sendFriendRequest(currentUserId, requestDto)
             ResponseEntity.status(HttpStatus.CREATED).body(mapOf("message" to "친구 요청을 보냈습니다.", "requestId" to friendRequest.id))
         } catch (e: IllegalArgumentException) {
-            ResponseEntity.badRequest().body(mapOf("error" to e.message))
+            ResponseEntity.badRequest().body(mapOf("message" to e.message))
         }
     }
 
