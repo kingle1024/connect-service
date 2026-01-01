@@ -38,6 +38,7 @@ dependencies {
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("io.github.microutils:kotlin-logging:3.0.5")
+    implementation("org.springframework.boot:spring-boot-starter-mail")
 
     implementation("com.querydsl:querydsl-jpa:5.0.0:jakarta")
     implementation("com.querydsl:querydsl-core:5.0.0")
