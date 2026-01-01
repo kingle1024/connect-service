@@ -1,5 +1,6 @@
 package com.connect.service.user.service
 
+import com.connect.service.user.domain.EmailVerification
 import com.connect.service.user.dto.VerificationInfo
 import com.connect.service.user.repository.EmailVerificationRepository
 import com.connect.service.user.repository.UserRepository
@@ -25,7 +26,6 @@ class AccountService(
     private val EMAIL_REGEX_PATTERN: Pattern = Pattern.compile(
             "^[a-zA-Z0-9_!#$%&'*+/=?`{|}~^.-]+@[a-zA-Z0-9.-]+\$"
         )
-    private val verificationCodes = ConcurrentHashMap<String, VerificationInfo>()
     private val VERIFICATION_CODE_EXPIRY_MINUTES: Long = 5 // 인증번호 유효 시간 5분
 
     @Transactional
@@ -51,7 +51,12 @@ class AccountService(
         val expiryTime = LocalDateTime.now().plusMinutes(VERIFICATION_CODE_EXPIRY_MINUTES)
 
         // 4. 인증번호와 만료 시간을 캐시에 저장
-        verificationCodes[email] = VerificationInfo(verificationCode, expiryTime)
+        val newVerification = EmailVerification(
+            email = email,
+            verificationCode = verificationCode,
+            expiresAt = expiryTime
+        )
+        emailVerificationRepository.save(newVerification)
 
         // 5. 이메일 발송
         val message = SimpleMailMessage()
@@ -61,11 +66,6 @@ class AccountService(
         javaMailSender.send(message)
 
         println("인증번호 '$verificationCode'가 '$email'로 발송되었습니다. (유효시간: $VERIFICATION_CODE_EXPIRY_MINUTES 분)")
-
-        // 6. 만료 시간 이후 캐시에서 제거 (비동기)
-        Timer().schedule(VERIFICATION_CODE_EXPIRY_MINUTES * 60 * 1000) { // 밀리초 단위
-            removeExpiredCode(email, verificationCode)
-        }
 
         return true
     }
@@ -122,14 +122,6 @@ class AccountService(
         return builder.toString()
     }
 
-    // 만료된 코드를 캐시에서 제거 (정확히는 스케줄링된 타이머가 해당 코드를 호출)
-    private fun removeExpiredCode(email: String, code: String) {
-        val currentInfo = verificationCodes[email]
-        if (currentInfo?.code == code && currentInfo.expiryTime.isBefore(LocalDateTime.now())) {
-            verificationCodes.remove(email)
-            println("인증번호 '$code' for '$email' 만료 및 제거 완료.")
-        }
-    }
 
     // 간단한 이메일 형식 유효성 검증
     private fun isValidEmail(email: String): Boolean {
