@@ -10,10 +10,12 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.* // <- 임포트 확인!
 import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
+import org.springframework.http.HttpStatus
+import java.security.Principal
 
 @RestController
 @RequestMapping("/api/boards")
-@CrossOrigin
+@CrossOrigin(origins = ["http://localhost:3000", "http://localhost:8082"], allowCredentials = "true")
 class BoardController(private val boardService: BoardService) {
 
     @GetMapping
@@ -43,5 +45,14 @@ class BoardController(private val boardService: BoardService) {
         return boardService.getBoardById(id)
             .map { board -> ResponseEntity.ok(board) }
             .orElse(ResponseEntity.notFound().build())
+    }
+
+    @DeleteMapping("/{id}")
+    fun deleteBoard(
+        @PathVariable id: Long,
+        principal: Principal
+    ): ResponseEntity<Void> {
+        boardService.deleteBoard(id, principal.name)
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build()
     }
 }
