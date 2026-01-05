@@ -10,13 +10,15 @@ import org.springframework.transaction.annotation.Transactional
 import java.util.Optional
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
+import org.springframework.http.HttpStatus
+import org.springframework.web.server.ResponseStatusException
 
 @Service
 class BoardService(private val boardRepository: BoardRepository) {
 
     @Transactional(readOnly = true)
     fun getAllBoards(pageable: Pageable): PaginatedBoardResponse {
-        val boardPage: Page<BoardMst> = boardRepository.findAll(pageable)
+        val boardPage: Page<BoardMst> = boardRepository.findAllByIsDeletedFalse(pageable)
 
         val boardResponseDtos: List<BoardResponseDto> = boardPage.content
             .map { BoardResponseDto.from(it) } // 각 BoardMst 엔티티를 DTO로 변환
@@ -67,6 +69,27 @@ class BoardService(private val boardRepository: BoardRepository) {
         // 3. 업데이트된 게시글을 저장하고 반환합니다. (JPA는 변경 감지를 통해 자동으로 업데이트합니다)
         return boardRepository.save(existingBoard)
     }
+
+    @Transactional
+   fun deleteBoard(boardId: Long, requestUserId: String) {
+       val board = boardRepository.findById(boardId)
+           .orElseThrow {
+               ResponseStatusException(HttpStatus.NOT_FOUND, "게시글을 찾을 수 없습니다: $boardId")
+           }
+
+       if (board.isDeleted) {
+           return
+       }
+
+       // 본인 게시물인지 확인
+       if (board.userId != requestUserId) {
+           throw ResponseStatusException(HttpStatus.FORBIDDEN, "게시글을 삭제할 권한이 없습니다.")
+       }
+
+       // 소프트 삭제 (isDeleted 플래그를 true로 변경)
+       board.isDeleted = true
+       boardRepository.save(board) // 변경사항 저장
+   }
 
     fun getBoardById(id: Long): Optional<BoardMst> {
             return boardRepository.findById(id)
