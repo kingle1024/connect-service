@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.* // <- 임포트 확인!
 import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
 import org.springframework.http.HttpStatus
+import org.springframework.security.access.prepost.PreAuthorize
+import org.springframework.security.core.Authentication
 import java.security.Principal
 
 @RestController
@@ -47,12 +49,20 @@ class BoardController(private val boardService: BoardService) {
             .orElse(ResponseEntity.notFound().build())
     }
 
+    @PreAuthorize("isAuthenticated()")
     @DeleteMapping("/{id}")
     fun deleteBoard(
         @PathVariable id: Long,
-        principal: Principal
-    ): ResponseEntity<Void> {
-        boardService.deleteBoard(id, principal.name)
+        authentication: Authentication?
+    ): ResponseEntity<Any> {
+        if (authentication == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(mapOf(
+                "status" to HttpStatus.UNAUTHORIZED.value(),
+                "message" to "로그인이 필요합니다. 토큰이 없거나 만료되었습니다.",
+                "code" to "AUTHENTICATION_REQUIRED"
+            ))
+        }
+        boardService.deleteBoard(id, authentication.name)
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build()
     }
 }
