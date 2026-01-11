@@ -46,9 +46,9 @@ class ChatRoomService (
 
        // 2. RoomMembership 존재 여부 확인 및 생성
        val membershipId = RoomMembershipId(userId, roomId) // 사용자 ID와 방 ID로 복합 키 생성
-       val exists = roomMembershipRepository.existsById(membershipId) // 해당 유저가 이미 이 방의 멤버인지 DB에서 확인
+       val exists = roomMembershipRepository.findById(membershipId) // 해당 유저가 이미 이 방의 멤버인지 DB에서 확인
 
-       if (!exists) { // 아직 멤버가 아니라면
+       if (exists.isEmpty) { // 아직 멤버가 아니라면
            val newMembership = RoomMembership(
                id = membershipId, // 복합 키
                chatRoom = chatRoom, // 관계 매핑된 ChatRoom 엔티티
