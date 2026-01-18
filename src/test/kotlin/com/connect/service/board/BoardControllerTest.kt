@@ -4,6 +4,8 @@ import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequ
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf
 import com.connect.service.board.controller.BoardController
 import com.connect.service.board.dto.BoardCreateRequest
+import com.connect.service.board.dto.BoardResponseDto
+import com.connect.service.board.dto.PaginatedBoardResponse
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Test
 import org.mockito.BDDMockito.*
@@ -21,8 +23,11 @@ import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.eq
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import org.springframework.data.domain.Pageable
+import org.springframework.security.test.context.support.WithMockUser
 
 @WebMvcTest(BoardController::class)
+@WithMockUser
 class BoardControllerTest {
 
     @Autowired
@@ -33,6 +38,52 @@ class BoardControllerTest {
 
     @MockitoBean
     private lateinit var boardService: BoardService
+    inline fun <reified T> mockitoAny(): T {
+        any(T::class.java)
+        return uninitialized()
+    }
+
+    // 초기화되지 않은 더미 값을 반환하는 헬퍼 함수
+    // Mockito의 `any()` 매처는 실제로 객체를 반환하는 것이 아니라 내부적으로 매처를 등록만 하기 때문에
+    // Kotlin 컴파일러가 요구하는 non-null 반환 값을 제공하기 위한 트릭입니다.
+    fun <T> uninitialized(): T = null as T
+
+    @Test
+    fun `getBoards 호출 시 페이지네이션된 게시글 목록과 다음 페이지 토큰을 반환해야 한다`() {
+        // given
+        val now = LocalDateTime.now()
+        val boardDto1 = BoardResponseDto(
+            id = 1L, title = "첫 번째 게시글", content = "내용1", category = "자유", commentCount = 5,
+            userId = "user01", userName = "김철수", insertDts = now.minusDays(1),
+            deadlineDts = now.plusDays(1), destination = "서울", maxCapacity = 10, currentParticipants = 3
+        )
+        val boardDto2 = BoardResponseDto(
+            id = 2L, title = "두 번째 게시글", content = "내용2", category = "질문", commentCount = 12,
+            userId = "user02", userName = "이영희", insertDts = now,
+            deadlineDts = now.plusDays(2), destination = "부산", maxCapacity = 5, currentParticipants = 2
+        )
+        val boardList = listOf(boardDto2, boardDto1)
+
+        val paginatedResponseWithNextPage = PaginatedBoardResponse(
+            nextPageToken = 2,
+            posts = boardList
+        )
+        `when`(boardService.getAllBoards(mockitoAny<Pageable>())).thenReturn(paginatedResponseWithNextPage)
+
+        // when
+        mockMvc.perform(get("/api/boards")
+            .contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk)
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+            .andExpect(jsonPath("$.posts[0].id").value(boardDto2.id))
+            .andExpect(jsonPath("$.posts[0].title").value(boardDto2.title))
+            .andExpect(jsonPath("$.posts[0].commentCount").value(boardDto2.commentCount))
+            .andExpect(jsonPath("$.posts[0].currentParticipants").value(boardDto2.currentParticipants))
+            .andExpect(jsonPath("$.nextPageToken").value(2))
+
+        // verify
+        verify(boardService).getAllBoards(mockitoAny<Pageable>())
+    }
 
     @Test
     fun `POST_api_boards_요청시_새로운_게시글을_생성하고_반환해야_한다`() {
