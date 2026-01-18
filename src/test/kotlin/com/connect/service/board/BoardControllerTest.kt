@@ -86,6 +86,38 @@ class BoardControllerTest {
     }
 
     @Test
+    fun `getBoards 호출 시 더 이상 게시글이 없으면 nextPageToken이 null이어야 한다`() {
+        // given
+        val now = LocalDateTime.now()
+        val boardDto1 = BoardResponseDto(
+            id = 3L, title = "마지막 페이지 게시글", content = "내용3", category = "공지", commentCount = 1,
+            userId = "admin", userName = "관리자", insertDts = now,
+            deadlineDts = now.plusDays(5), destination = "본사", maxCapacity = 100, currentParticipants = 10
+        )
+        val boardList = listOf(boardDto1)
+
+        val paginatedResponseNoNextPage = PaginatedBoardResponse(
+            nextPageToken = null,
+            posts = boardList
+        )
+        // Mocking 시에도 `mockitoAny()` 사용
+        `when`(boardService.getAllBoards(mockitoAny<Pageable>()))
+            .thenReturn(paginatedResponseNoNextPage)
+
+        // when
+        mockMvc.perform(get("/api/boards")
+            .param("page", "1") // 1페이지를 요청하여 마지막 페이지 시나리오 테스트
+            .contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk)
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+            .andExpect(jsonPath("$.posts[0].id").value(boardDto1.id))
+            .andExpect(jsonPath("$.nextPageToken").isEmpty)
+
+        // verify
+        verify(boardService).getAllBoards(mockitoAny<Pageable>())
+    }
+
+    @Test
     fun `POST_api_boards_요청시_새로운_게시글을_생성하고_반환해야_한다`() {
         // Given: 새로운 게시글 생성 요청 데이터와 Service가 반환할 가상의 결과 데이터 생성
         val now = LocalDateTime.now().withNano(0)
