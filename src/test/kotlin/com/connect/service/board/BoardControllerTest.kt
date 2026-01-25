@@ -50,6 +50,25 @@ class BoardControllerTest {
     fun <T> uninitialized(): T = null as T
 
     @Test
+    fun `getBoardDetail - 게시글이 존재하지 않을 경우 404 Not Found 반환`() {
+        // given: 테스트를 위한 mock 데이터 설정
+        val boardId = 999L // 존재하지 않는 ID
+
+        // when: boardService.getBoardById(boardId) 호출 시 Optional.empty() 반환하도록 Mocking
+        `when`(boardService.getBoardById(boardId)).thenReturn(Optional.empty())
+
+        // then: MockMvc를 사용하여 HTTP GET 요청을 보내고 결과를 검증
+        mockMvc.perform(
+            get("/api/boards/{id}", boardId) // 컨트롤러의 @GetMapping 경로에 맞춰 호출 (예: /boards/999)
+                .contentType(MediaType.APPLICATION_JSON)
+        )
+            .andExpect(status().isNotFound) // HTTP 상태 코드가 404 Not Found인지 검증
+
+        // verify: boardService.getBoardById(boardId) 메서드가 1번 호출되었는지 검증
+        verify(boardService, times(1)).getBoardById(boardId)
+    }
+
+    @Test
     fun `getBoardDetail - 게시글이 존재할 경우 200 OK와 게시글 반환`() {
         // given: 테스트를 위한 mock 데이터 설정
         val boardId = 1L
