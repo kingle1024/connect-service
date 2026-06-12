@@ -1,6 +1,7 @@
 package com.connect.service.user.service
 
 import com.connect.service.user.domain.EmailVerification
+import com.connect.service.user.domain.Users
 import com.connect.service.user.dto.VerificationInfo
 import com.connect.service.user.repository.EmailVerificationRepository
 import com.connect.service.user.repository.UserRepository
@@ -110,6 +111,25 @@ class AccountService(
         println("'$email' 사용자의 비밀번호가 성공적으로 재설정되었습니다.")
         return true
 
+    }
+
+    /**
+     * 본인 이름(별칭)을 변경합니다. 새 글 작성 시 이 이름이 사용됩니다.
+     * (기존 게시글의 작성자명은 작성 당시 스냅샷이라 변경되지 않습니다)
+     * @param userId 변경 대상 사용자 ID (JWT에서 추출)
+     * @param newName 새 이름
+     * @return 변경된 사용자
+     */
+    @Transactional
+    fun updateUserName(userId: String, newName: String): Users {
+        val trimmed = newName.trim()
+        if (trimmed.isEmpty()) {
+            throw IllegalArgumentException("이름은 비어 있을 수 없습니다.")
+        }
+        val user = userRepository.findByUserId(userId)
+            ?: throw IllegalArgumentException("사용자를 찾을 수 없습니다.")
+        user.name = trimmed
+        return userRepository.save(user)
     }
 
     // 6자리 랜덤 숫자 문자열 생성
