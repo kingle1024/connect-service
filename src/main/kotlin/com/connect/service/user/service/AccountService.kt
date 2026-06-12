@@ -1,5 +1,6 @@
 package com.connect.service.user.service
 
+import com.connect.service.board.repository.BoardRepository
 import com.connect.service.user.domain.EmailVerification
 import com.connect.service.user.domain.Users
 import com.connect.service.user.dto.VerificationInfo
@@ -22,7 +23,8 @@ class AccountService(
     private val javaMailSender: JavaMailSender,
     private val emailVerificationRepository: EmailVerificationRepository,
     private val userRepository: UserRepository,
-    private val passwordEncoder: PasswordEncoder
+    private val passwordEncoder: PasswordEncoder,
+    private val boardRepository: BoardRepository
 ) {
     private val EMAIL_REGEX_PATTERN: Pattern = Pattern.compile(
             "^[a-zA-Z0-9_!#$%&'*+/=?`{|}~^.-]+@[a-zA-Z0-9.-]+\$"
@@ -129,7 +131,10 @@ class AccountService(
         val user = userRepository.findByUserId(userId)
             ?: throw IllegalArgumentException("사용자를 찾을 수 없습니다.")
         user.name = trimmed
-        return userRepository.save(user)
+        val saved = userRepository.save(user)
+        // 이미 작성한 게시글의 작성자명도 함께 변경 (모집 탭에 표시되는 이름 일괄 반영)
+        boardRepository.updateUserNameByUserId(userId, trimmed)
+        return saved
     }
 
     // 6자리 랜덤 숫자 문자열 생성

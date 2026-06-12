@@ -1,5 +1,6 @@
 package com.connect.service.user
 
+import com.connect.service.board.repository.BoardRepository
 import com.connect.service.user.domain.Users
 import com.connect.service.user.repository.EmailVerificationRepository
 import com.connect.service.user.repository.UserRepository
@@ -34,6 +35,9 @@ class AccountServiceTest {
     @Mock
     private lateinit var passwordEncoder: PasswordEncoder
 
+    @Mock
+    private lateinit var boardRepository: BoardRepository
+
     @InjectMocks
     private lateinit var accountService: AccountService
 
@@ -51,6 +55,8 @@ class AccountServiceTest {
         // Then: 공백 제거된 이름으로 변경
         assertEquals("새이름", result.name)
         verify(userRepository).save(any<Users>())
+        // 기존 게시글 작성자명도 동기화 호출
+        verify(boardRepository).updateUserNameByUserId("kakao_1", "새이름")
     }
 
     @Test
