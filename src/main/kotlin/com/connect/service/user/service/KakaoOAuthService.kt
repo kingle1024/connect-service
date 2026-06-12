@@ -9,9 +9,9 @@ import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
 import org.springframework.http.MediaType
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
 import org.springframework.util.LinkedMultiValueMap
 import org.springframework.web.client.RestTemplate
 import java.util.UUID
@@ -95,7 +95,8 @@ class KakaoOAuthService(
     }
 
     // 카카오 사용자를 우리 서비스 사용자(Users)로 연결. 없으면 신규 생성
-    @Transactional
+    // 메서드 단위 @Transactional 을 두지 않음: save()가 자체 트랜잭션으로 실행돼야
+    // 중복 INSERT 실패 시 해당 트랜잭션만 롤백되고, catch 의 재조회가 새 트랜잭션에서 성공한다.
     fun loginOrRegister(info: KakaoUserInfo): Users {
         // 소셜 사용자는 별도 스키마 변경 없이 userId 접두사("kakao_")로 식별
         val userId = "kakao_${info.id}"
@@ -113,7 +114,14 @@ class KakaoOAuthService(
             rawPassword = passwordEncoder.encode(UUID.randomUUID().toString()),
             profileUrl = info.profileImage
         )
-        log.info("신규 카카오 사용자 생성: userId = {}", userId)
-        return userRepository.save(newUser)
+
+        return try {
+            log.info("신규 카카오 사용자 생성: userId = {}", userId)
+            userRepository.save(newUser)
+        } catch (e: DataIntegrityViolationException) {
+            // 동시 요청으로 다른 트랜잭션이 먼저 같은 사용자를 생성한 경우(중복 INSERT) 기존 사용자를 반환
+            log.warn("카카오 사용자 동시 생성 감지, 기존 사용자 재조회: userId = {}", userId)
+            userRepository.findByUserId(userId) ?: throw e
+        }
     }
 }

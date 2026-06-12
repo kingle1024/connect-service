@@ -69,6 +69,26 @@ class KakaoOAuthServiceTest {
     }
 
     @Test
+    @DisplayName("동시 요청으로 INSERT 가 중복되면 기존 사용자를 재조회해 반환한다")
+    fun `동시_생성_중복시_재조회_반환`() {
+        // Given: 최초 조회 시엔 없음 → save 가 중복(DataIntegrityViolation) → 재조회 시엔 존재
+        val info = KakaoUserInfo(id = "777", email = null, nickname = "둘리", profileImage = null)
+        val concurrentlyCreated = Users(userId = "kakao_777", email = "x@kakao.local", name = "둘리", rawPassword = "x")
+        whenever(userRepository.findByUserId("kakao_777"))
+            .thenReturn(null) // 1차 조회: 없음
+            .thenReturn(concurrentlyCreated) // catch 내 재조회: 존재
+        whenever(passwordEncoder.encode(any())).thenReturn("encoded-random")
+        whenever(userRepository.save(any<Users>()))
+            .thenThrow(org.springframework.dao.DataIntegrityViolationException("duplicate"))
+
+        // When
+        val result = kakaoOAuthService.loginOrRegister(info)
+
+        // Then: 예외를 삼키고 기존 사용자를 반환
+        assertEquals(concurrentlyCreated, result)
+    }
+
+    @Test
     @DisplayName("기존 카카오 사용자는 새로 생성하지 않고 재사용한다")
     fun `기존_카카오_사용자_재사용`() {
         // Given: 동일한 카카오 사용자가 이미 존재
