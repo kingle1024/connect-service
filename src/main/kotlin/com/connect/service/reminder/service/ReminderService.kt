@@ -3,6 +3,7 @@ package com.connect.service.reminder.service
 import com.connect.service.reminder.dto.ReminderCreateRequest
 import com.connect.service.reminder.entity.DateReminder
 import com.connect.service.reminder.repository.ReminderRepository
+import com.connect.service.user.domain.UserRole
 import com.connect.service.user.repository.UserRepository
 import mu.KotlinLogging
 import org.springframework.http.HttpStatus
@@ -31,6 +32,10 @@ class ReminderService(
         }
         val user = userRepository.findByUserId(userId)
             ?: throw IllegalArgumentException("사용자를 찾을 수 없습니다.")
+        // 더존 이메일 인증(ROLE_VERIFIED)을 완료한 사용자만 알림 등록 가능
+        if (!user.roles.contains(UserRole.ROLE_VERIFIED)) {
+            throw IllegalArgumentException("이메일 인증 후 이용할 수 있습니다.")
+        }
         val email = request.email?.trim()?.takeIf { it.isNotEmpty() } ?: user.email
 
         val reminder = DateReminder(
