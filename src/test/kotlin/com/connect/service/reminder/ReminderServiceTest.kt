@@ -4,6 +4,7 @@ import com.connect.service.reminder.dto.ReminderCreateRequest
 import com.connect.service.reminder.entity.DateReminder
 import com.connect.service.reminder.repository.ReminderRepository
 import com.connect.service.reminder.service.ReminderService
+import com.connect.service.user.domain.UserRole
 import com.connect.service.user.domain.Users
 import com.connect.service.user.repository.UserRepository
 import org.junit.jupiter.api.DisplayName
@@ -41,7 +42,10 @@ class ReminderServiceTest {
     @Test
     @DisplayName("이메일 미지정 시 계정 이메일로 알림을 등록한다")
     fun `이메일_미지정시_계정이메일_사용`() {
-        val user = Users(userId = "u1", email = "me@douzone.com", name = "홍길동", rawPassword = "x")
+        val user = Users(
+            userId = "u1", email = "me@douzone.com", name = "홍길동", rawPassword = "x",
+            roles = mutableSetOf(UserRole.ROLE_USER, UserRole.ROLE_VERIFIED)
+        )
         whenever(userRepository.findByUserId("u1")).thenReturn(user)
         whenever(reminderRepository.save(any<DateReminder>())).thenAnswer { it.arguments[0] as DateReminder }
 
@@ -56,7 +60,10 @@ class ReminderServiceTest {
     @Test
     @DisplayName("이메일을 지정하면 해당 이메일로 등록한다")
     fun `이메일_지정시_해당_이메일_사용`() {
-        val user = Users(userId = "u1", email = "me@douzone.com", name = "홍길동", rawPassword = "x")
+        val user = Users(
+            userId = "u1", email = "me@douzone.com", name = "홍길동", rawPassword = "x",
+            roles = mutableSetOf(UserRole.ROLE_USER, UserRole.ROLE_VERIFIED)
+        )
         whenever(userRepository.findByUserId("u1")).thenReturn(user)
         whenever(reminderRepository.save(any<DateReminder>())).thenAnswer { it.arguments[0] as DateReminder }
 
@@ -71,6 +78,20 @@ class ReminderServiceTest {
     fun `빈_내용_예외`() {
         assertThrows<IllegalArgumentException> {
             reminderService.create("u1", ReminderCreateRequest(LocalDate.of(2026, 9, 12), "   ", null))
+        }
+        verify(reminderRepository, never()).save(any<DateReminder>())
+    }
+
+    @Test
+    @DisplayName("이메일 인증(ROLE_VERIFIED)이 없으면 알림 등록을 거부한다")
+    fun `미인증_사용자_거부`() {
+        // Given: ROLE_VERIFIED 없는 일반 사용자
+        val user = Users(userId = "u1", email = "u1@kakao.local", name = "미인증", rawPassword = "x")
+        whenever(userRepository.findByUserId("u1")).thenReturn(user)
+
+        // When & Then
+        assertThrows<IllegalArgumentException> {
+            reminderService.create("u1", ReminderCreateRequest(LocalDate.of(2026, 9, 12), "오전 반차", null))
         }
         verify(reminderRepository, never()).save(any<DateReminder>())
     }
