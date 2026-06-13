@@ -36,6 +36,26 @@ class BoardService(private val boardRepository: BoardRepository) {
         )
     }
 
+    // 특정 작성자의 게시글 목록 (마이페이지 - 내가 쓴 글)
+    @Transactional(readOnly = true)
+    fun getBoardsByAuthor(userId: String, pageable: Pageable): PaginatedBoardResponse {
+        val boardPage: Page<BoardMst> = boardRepository.findAllByUserIdAndIsDeletedFalse(userId, pageable)
+
+        val boardResponseDtos: List<BoardResponseDto> = boardPage.content
+            .map { BoardResponseDto.from(it) }
+
+        val nextPageToken: Int? = if (boardPage.hasNext()) {
+            boardPage.number + 1
+        } else {
+            null
+        }
+
+        return PaginatedBoardResponse(
+            nextPageToken = nextPageToken,
+            posts = boardResponseDtos
+        )
+    }
+
     @Transactional
     fun createBoard(request: BoardCreateRequest): BoardMst {
         val newBoardMst = BoardMst(
