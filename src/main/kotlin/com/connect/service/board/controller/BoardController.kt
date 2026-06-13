@@ -28,6 +28,16 @@ class BoardController(private val boardService: BoardService) {
         return ResponseEntity.ok(paginatedResponse)
     }
 
+    // 특정 작성자(userId)가 쓴 게시글 목록 (마이페이지 - 내가 쓴 글)
+    // 경로 세그먼트 수가 달라 GET /api/boards/{id} 와 충돌하지 않음
+    @GetMapping("/author/{userId}")
+    fun getBoardsByAuthor(
+        @PathVariable userId: String,
+        @PageableDefault(size = 10, sort = ["insertDts"], direction = Sort.Direction.DESC) pageable: Pageable
+    ): ResponseEntity<PaginatedBoardResponse> {
+        return ResponseEntity.ok(boardService.getBoardsByAuthor(userId, pageable))
+    }
+
     @PostMapping
     fun createBoard(@RequestBody request: BoardCreateRequest): BoardMst {
         return boardService.createBoard(request)

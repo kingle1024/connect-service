@@ -19,7 +19,7 @@ data class Users(
     val email: String, // 더존 이메일
 
     @Column(nullable = false)
-    val name: String, // 사용자 별칭
+    var name: String, // 사용자 별칭 (마이페이지에서 수정 가능)
 
     @Column(name = "password", nullable = false)
     var rawPassword: String, // 비밀번호 (암호화하여 저장)

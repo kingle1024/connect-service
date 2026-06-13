@@ -3,9 +3,13 @@ package com.connect.service.user.controller
 import com.connect.service.common.ApiResponse
 import com.connect.service.user.dto.EmailRequest
 import com.connect.service.user.dto.ResetPasswordRequest
+import com.connect.service.user.dto.UpdateNameRequest
+import com.connect.service.user.dto.UserInfoResponse
 import com.connect.service.user.dto.VerificationRequest
 import com.connect.service.user.service.AccountService
+import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.security.core.Authentication
 import org.springframework.web.bind.annotation.*
 
 @RestController
@@ -70,6 +74,29 @@ class AccountController (
             }
         } catch (e: Exception) {
             ResponseEntity.internalServerError().body(ApiResponse.error("비밀번호 재설정 중 오류가 발생했습니다."))
+        }
+    }
+
+    /**
+     * 본인 이름(별칭) 변경
+     * JWT 토큰에서 사용자 ID를 추출하여 해당 사용자의 이름을 변경합니다.
+     * PUT /api/account/me/name
+     */
+    @PutMapping("/me/name")
+    fun updateMyName(
+        @RequestBody request: UpdateNameRequest,
+        authentication: Authentication?
+    ): ResponseEntity<ApiResponse<UserInfoResponse>> {
+        if (authentication == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error("로그인이 필요합니다."))
+        }
+        return try {
+            val updated = accountService.updateUserName(authentication.name, request.name)
+            val info = UserInfoResponse(updated.userId, updated.email, updated.name, updated.profileUrl)
+            ResponseEntity.ok(ApiResponse.success("이름이 변경되었습니다.", info))
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.badRequest().body(ApiResponse.error(e.message ?: "잘못된 요청입니다."))
         }
     }
 }
