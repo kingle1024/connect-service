@@ -1,6 +1,8 @@
 package com.connect.service.user
 
 import com.connect.service.board.repository.BoardRepository
+import com.connect.service.user.domain.EmailVerification
+import com.connect.service.user.domain.UserRole
 import com.connect.service.user.domain.Users
 import com.connect.service.user.repository.EmailVerificationRepository
 import com.connect.service.user.repository.UserRepository
@@ -13,12 +15,17 @@ import org.mockito.InjectMocks
 import org.mockito.Mock
 import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.any
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.springframework.mail.javamail.JavaMailSender
 import org.springframework.security.crypto.password.PasswordEncoder
+import java.time.LocalDateTime
+import java.util.Optional
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 @ExtendWith(MockitoExtension::class)
 class AccountServiceTest {
@@ -79,5 +86,64 @@ class AccountServiceTest {
         assertThrows<IllegalArgumentException> {
             accountService.updateUserName("nope", "이름")
         }
+    }
+
+    @Test
+    @DisplayName("@douzone.com 이 아닌 이메일은 인증번호 발송이 거부된다")
+    fun `더존_도메인_아니면_발송_예외`() {
+        assertThrows<IllegalArgumentException> {
+            accountService.sendDouzoneVerificationCode("user@gmail.com")
+        }
+        // 도메인 검증에서 막히므로 메일 발송/저장은 호출되지 않음
+        verify(emailVerificationRepository, never()).save(any<EmailVerification>())
+    }
+
+    @Test
+    @DisplayName("더존 이메일 인증 성공 시 ROLE_VERIFIED 가 부여된다")
+    fun `더존_인증_성공_ROLE_VERIFIED_부여`() {
+        // Given: 유효한 인증번호가 존재
+        val email = "hong@douzone.com"
+        val code = "123456"
+        val verification = EmailVerification(
+            email = email,
+            verificationCode = code,
+            expiresAt = LocalDateTime.now().plusMinutes(5)
+        )
+        whenever(
+            emailVerificationRepository.findByEmailAndVerificationCodeAndExpiresAtAfterAndIsUsedFalse(
+                eq(email), eq(code), any()
+            )
+        ).thenReturn(Optional.of(verification))
+        whenever(emailVerificationRepository.save(any<EmailVerification>())).thenAnswer { it.arguments[0] }
+
+        val user = Users(userId = "kakao_1", email = "kakao_1@kakao.local", name = "홍길동", rawPassword = "x")
+        whenever(userRepository.findByUserId("kakao_1")).thenReturn(user)
+        whenever(userRepository.save(any<Users>())).thenAnswer { it.arguments[0] as Users }
+
+        // When
+        val result = accountService.verifyDouzoneEmail("kakao_1", email, code)
+
+        // Then: ROLE_VERIFIED 부여
+        assertNotNull(result)
+        assertTrue(result.roles.contains(UserRole.ROLE_VERIFIED))
+    }
+
+    @Test
+    @DisplayName("인증번호가 틀리면 null 을 반환하고 ROLE_VERIFIED 를 부여하지 않는다")
+    fun `더존_인증_실패_null`() {
+        // Given: 일치하는 인증코드 없음
+        val email = "hong@douzone.com"
+        whenever(
+            emailVerificationRepository.findByEmailAndVerificationCodeAndExpiresAtAfterAndIsUsedFalse(
+                eq(email), eq("000000"), any()
+            )
+        ).thenReturn(Optional.empty())
+
+        // When
+        val result = accountService.verifyDouzoneEmail("kakao_1", email, "000000")
+
+        // Then
+        assertEquals(null, result)
+        verify(userRepository, never()).save(any<Users>())
     }
 }

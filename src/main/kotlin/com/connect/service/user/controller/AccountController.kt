@@ -1,6 +1,7 @@
 package com.connect.service.user.controller
 
 import com.connect.service.common.ApiResponse
+import com.connect.service.user.domain.UserRole
 import com.connect.service.user.dto.EmailRequest
 import com.connect.service.user.dto.ResetPasswordRequest
 import com.connect.service.user.dto.UpdateNameRequest
@@ -93,8 +94,54 @@ class AccountController (
         }
         return try {
             val updated = accountService.updateUserName(authentication.name, request.name)
-            val info = UserInfoResponse(updated.userId, updated.email, updated.name, updated.profileUrl)
+            val info = UserInfoResponse(
+                updated.userId, updated.email, updated.name, updated.profileUrl,
+                updated.roles.contains(UserRole.ROLE_VERIFIED)
+            )
             ResponseEntity.ok(ApiResponse.success("이름이 변경되었습니다.", info))
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.badRequest().body(ApiResponse.error(e.message ?: "잘못된 요청입니다."))
+        }
+    }
+
+    /**
+     * 더존 이메일 인증번호 발송 (@douzone.com 만 허용)
+     * POST /api/account/verify-douzone/send-code
+     */
+    @PostMapping("/verify-douzone/send-code")
+    fun sendDouzoneCode(@RequestBody request: EmailRequest): ResponseEntity<ApiResponse<Unit>> {
+        return try {
+            accountService.sendDouzoneVerificationCode(request.email)
+            ResponseEntity.ok(ApiResponse.success("인증번호가 이메일로 발송되었습니다."))
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.badRequest().body(ApiResponse.error(e.message ?: "잘못된 요청입니다."))
+        } catch (e: Exception) {
+            ResponseEntity.internalServerError().body(ApiResponse.error("인증번호 발송에 실패했습니다. 잠시 후 다시 시도해주세요."))
+        }
+    }
+
+    /**
+     * 더존 이메일 인증 확정 (성공 시 ROLE_VERIFIED 부여)
+     * POST /api/account/verify-douzone/confirm
+     */
+    @PostMapping("/verify-douzone/confirm")
+    fun confirmDouzone(
+        @RequestBody request: VerificationRequest,
+        authentication: Authentication?
+    ): ResponseEntity<ApiResponse<UserInfoResponse>> {
+        if (authentication == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error("로그인이 필요합니다."))
+        }
+        return try {
+            val updated = accountService.verifyDouzoneEmail(authentication.name, request.email, request.code)
+                ?: return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("인증번호가 일치하지 않거나 만료되었습니다."))
+            val info = UserInfoResponse(
+                updated.userId, updated.email, updated.name, updated.profileUrl,
+                updated.roles.contains(UserRole.ROLE_VERIFIED)
+            )
+            ResponseEntity.ok(ApiResponse.success("더존 이메일 인증이 완료되었습니다.", info))
         } catch (e: IllegalArgumentException) {
             ResponseEntity.badRequest().body(ApiResponse.error(e.message ?: "잘못된 요청입니다."))
         }

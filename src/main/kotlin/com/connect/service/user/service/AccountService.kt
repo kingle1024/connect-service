@@ -2,6 +2,7 @@ package com.connect.service.user.service
 
 import com.connect.service.board.repository.BoardRepository
 import com.connect.service.user.domain.EmailVerification
+import com.connect.service.user.domain.UserRole
 import com.connect.service.user.domain.Users
 import com.connect.service.user.dto.VerificationInfo
 import com.connect.service.user.repository.EmailVerificationRepository
@@ -30,6 +31,7 @@ class AccountService(
             "^[a-zA-Z0-9_!#$%&'*+/=?`{|}~^.-]+@[a-zA-Z0-9.-]+\$"
         )
     private val VERIFICATION_CODE_EXPIRY_MINUTES: Long = 5 // 인증번호 유효 시간 5분
+    private val DOUZONE_EMAIL_DOMAIN = "@douzone.com" // 인증 가능한 사내 이메일 도메인
 
     @Transactional
     fun sendVerificationCode(email: String): Boolean {
@@ -113,6 +115,58 @@ class AccountService(
         println("'$email' 사용자의 비밀번호가 성공적으로 재설정되었습니다.")
         return true
 
+    }
+
+    /**
+     * 더존 이메일(@douzone.com) 인증번호 발송.
+     * 비밀번호 찾기와 달리 가입된 이메일일 필요는 없지만, 반드시 @douzone.com 도메인이어야 합니다.
+     */
+    @Transactional
+    fun sendDouzoneVerificationCode(email: String): Boolean {
+        if (!isValidEmail(email)) {
+            throw IllegalArgumentException("유효하지 않은 이메일 주소입니다.")
+        }
+        if (!email.lowercase().endsWith(DOUZONE_EMAIL_DOMAIN)) {
+            throw IllegalArgumentException("@douzone.com 이메일만 인증할 수 있습니다.")
+        }
+
+        // 기존 미사용 인증코드 무효화
+        val existingVerifications = emailVerificationRepository
+            .findAllByEmailAndExpiresAtAfterAndIsUsedFalse(email, LocalDateTime.now())
+        existingVerifications.forEach { it.isUsed = true }
+        emailVerificationRepository.saveAll(existingVerifications)
+
+        val verificationCode = generateRandomNumber(6)
+        val expiryTime = LocalDateTime.now().plusMinutes(VERIFICATION_CODE_EXPIRY_MINUTES)
+        emailVerificationRepository.save(
+            EmailVerification(email = email, verificationCode = verificationCode, expiresAt = expiryTime)
+        )
+
+        val message = SimpleMailMessage()
+        message.setTo(email)
+        message.setSubject("[같이타] 더존 이메일 인증번호")
+        message.setText("안녕하세요.\n\n[같이타] 더존 이메일 인증번호는 [ $verificationCode ] 입니다.\n\n이 인증번호는 $VERIFICATION_CODE_EXPIRY_MINUTES 분 후 만료됩니다.")
+        javaMailSender.send(message)
+
+        return true
+    }
+
+    /**
+     * 더존 이메일 인증 확정. 인증번호가 유효하면 해당 사용자에게 ROLE_VERIFIED 를 부여합니다.
+     * @return 인증 성공 시 갱신된 사용자, 인증번호 불일치/만료 시 null
+     */
+    @Transactional
+    fun verifyDouzoneEmail(userId: String, email: String, code: String): Users? {
+        if (!email.lowercase().endsWith(DOUZONE_EMAIL_DOMAIN)) {
+            throw IllegalArgumentException("@douzone.com 이메일만 인증할 수 있습니다.")
+        }
+        if (!verifyCode(email, code)) {
+            return null
+        }
+        val user = userRepository.findByUserId(userId)
+            ?: throw IllegalArgumentException("사용자를 찾을 수 없습니다.")
+        user.roles.add(UserRole.ROLE_VERIFIED)
+        return userRepository.save(user)
     }
 
     /**
