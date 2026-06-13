@@ -22,6 +22,7 @@ import org.springframework.mail.SimpleMailMessage
 import org.springframework.mail.javamail.JavaMailSender
 import java.time.LocalDate
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 @ExtendWith(MockitoExtension::class)
@@ -40,12 +41,10 @@ class ReminderServiceTest {
     private lateinit var reminderService: ReminderService
 
     @Test
-    @DisplayName("이메일 미지정 시 계정 이메일로 알림을 등록한다")
-    fun `이메일_미지정시_계정이메일_사용`() {
-        val user = Users(
-            userId = "u1", email = "me@douzone.com", name = "홍길동", rawPassword = "x",
-            roles = mutableSetOf(UserRole.ROLE_USER, UserRole.ROLE_VERIFIED)
-        )
+    @DisplayName("미인증 사용자도 알림을 등록할 수 있다 (이메일 미지정 시 계정 이메일)")
+    fun `미인증도_등록_가능_계정이메일_사용`() {
+        // Given: 인증(ROLE_VERIFIED) 없는 일반 사용자
+        val user = Users(userId = "u1", email = "me@douzone.com", name = "홍길동", rawPassword = "x")
         whenever(userRepository.findByUserId("u1")).thenReturn(user)
         whenever(reminderRepository.save(any<DateReminder>())).thenAnswer { it.arguments[0] as DateReminder }
 
@@ -60,10 +59,7 @@ class ReminderServiceTest {
     @Test
     @DisplayName("이메일을 지정하면 해당 이메일로 등록한다")
     fun `이메일_지정시_해당_이메일_사용`() {
-        val user = Users(
-            userId = "u1", email = "me@douzone.com", name = "홍길동", rawPassword = "x",
-            roles = mutableSetOf(UserRole.ROLE_USER, UserRole.ROLE_VERIFIED)
-        )
+        val user = Users(userId = "u1", email = "me@douzone.com", name = "홍길동", rawPassword = "x")
         whenever(userRepository.findByUserId("u1")).thenReturn(user)
         whenever(reminderRepository.save(any<DateReminder>())).thenAnswer { it.arguments[0] as DateReminder }
 
@@ -83,33 +79,44 @@ class ReminderServiceTest {
     }
 
     @Test
-    @DisplayName("이메일 인증(ROLE_VERIFIED)이 없으면 알림 등록을 거부한다")
-    fun `미인증_사용자_거부`() {
-        // Given: ROLE_VERIFIED 없는 일반 사용자
-        val user = Users(userId = "u1", email = "u1@kakao.local", name = "미인증", rawPassword = "x")
-        whenever(userRepository.findByUserId("u1")).thenReturn(user)
-
-        // When & Then
-        assertThrows<IllegalArgumentException> {
-            reminderService.create("u1", ReminderCreateRequest(LocalDate.of(2026, 9, 12), "오전 반차", null))
-        }
-        verify(reminderRepository, never()).save(any<DateReminder>())
-    }
-
-    @Test
-    @DisplayName("당일 미발송 알림을 이메일로 보내고 발송 완료로 표시한다")
-    fun `당일_알림_발송_및_표시`() {
+    @DisplayName("인증(ROLE_VERIFIED) 사용자의 당일 알림은 이메일을 발송하고 발송 완료로 표시한다")
+    fun `인증_사용자_알림_메일_발송`() {
         val today = LocalDate.of(2026, 9, 12)
         val reminder = DateReminder(
             id = 1L, userId = "u1", email = "a@douzone.com",
             reminderDate = today, content = "오전 반차", notified = false
         )
         whenever(reminderRepository.findByReminderDateAndNotifiedFalse(today)).thenReturn(listOf(reminder))
+        val verifiedUser = Users(
+            userId = "u1", email = "a@douzone.com", name = "홍길동", rawPassword = "x",
+            roles = mutableSetOf(UserRole.ROLE_USER, UserRole.ROLE_VERIFIED)
+        )
+        whenever(userRepository.findByUserIdIn(any())).thenReturn(listOf(verifiedUser))
 
         val sent = reminderService.sendDueReminders(today)
 
         verify(javaMailSender).send(any<SimpleMailMessage>())
         assertTrue(reminder.notified)
         assertEquals(1, sent)
+    }
+
+    @Test
+    @DisplayName("미인증 사용자의 알림은 이메일을 발송하지 않는다 (마이페이지 조회 전용)")
+    fun `미인증_사용자_메일_미발송`() {
+        val today = LocalDate.of(2026, 9, 12)
+        val reminder = DateReminder(
+            id = 2L, userId = "u2", email = "u2@kakao.local",
+            reminderDate = today, content = "오전 반차", notified = false
+        )
+        whenever(reminderRepository.findByReminderDateAndNotifiedFalse(today)).thenReturn(listOf(reminder))
+        // ROLE_VERIFIED 없는 일반 사용자
+        val plainUser = Users(userId = "u2", email = "u2@kakao.local", name = "미인증", rawPassword = "x")
+        whenever(userRepository.findByUserIdIn(any())).thenReturn(listOf(plainUser))
+
+        val sent = reminderService.sendDueReminders(today)
+
+        verify(javaMailSender, never()).send(any<SimpleMailMessage>())
+        assertFalse(reminder.notified)
+        assertEquals(0, sent)
     }
 }
