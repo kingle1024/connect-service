@@ -30,12 +30,9 @@ class ReminderService(
         if (request.content.isBlank()) {
             throw IllegalArgumentException("알림 내용을 입력해주세요.")
         }
+        // 알림 등록은 누구나 가능(마이페이지 조회용). 단, 이메일 발송은 인증 사용자만(sendDueReminders 참고)
         val user = userRepository.findByUserId(userId)
             ?: throw IllegalArgumentException("사용자를 찾을 수 없습니다.")
-        // 더존 이메일 인증(ROLE_VERIFIED)을 완료한 사용자만 알림 등록 가능
-        if (!user.roles.contains(UserRole.ROLE_VERIFIED)) {
-            throw IllegalArgumentException("이메일 인증 후 이용할 수 있습니다.")
-        }
         val email = request.email?.trim()?.takeIf { it.isNotEmpty() } ?: user.email
 
         val reminder = DateReminder(
@@ -63,10 +60,20 @@ class ReminderService(
     }
 
     // 해당 날짜의 미발송 알림을 이메일로 발송하고 발송 완료로 표시. (스케줄러에서 호출)
+    // ★이메일 발송은 더존 이메일 인증(ROLE_VERIFIED) 사용자만★ (미인증 사용자의 알림은 마이페이지 조회 전용)
     @Transactional
     fun sendDueReminders(today: LocalDate): Int {
         val dueList = reminderRepository.findByReminderDateAndNotifiedFalse(today)
-        dueList.forEach { reminder ->
+        if (dueList.isEmpty()) {
+            return 0
+        }
+        // 인증 완료 사용자 ID 집합 (이 사용자들의 알림만 메일 발송)
+        val verifiedUserIds = userRepository.findByUserIdIn(dueList.map { it.userId }.distinct())
+            .filter { it.roles.contains(UserRole.ROLE_VERIFIED) }
+            .map { it.userId }
+            .toSet()
+
+        dueList.filter { it.userId in verifiedUserIds }.forEach { reminder ->
             try {
                 val message = SimpleMailMessage()
                 message.setTo(reminder.email)
