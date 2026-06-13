@@ -52,10 +52,10 @@ class BoardController(private val boardService: BoardService) {
     }
 
     @GetMapping("/{id}")
-    fun getBoardDetail(@PathVariable id: Long): ResponseEntity<BoardMst> {
-        return boardService.getBoardById(id)
-            .map { board -> ResponseEntity.ok(board) }
-            .orElse(ResponseEntity.notFound().build())
+    fun getBoardDetail(@PathVariable id: Long): ResponseEntity<com.connect.service.board.dto.BoardResponseDto> {
+        val detail = boardService.getBoardDetail(id)
+            ?: return ResponseEntity.notFound().build()
+        return ResponseEntity.ok(detail)
     }
 
     @PreAuthorize("isAuthenticated()")

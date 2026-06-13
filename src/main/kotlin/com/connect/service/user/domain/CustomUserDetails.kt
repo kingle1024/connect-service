@@ -29,4 +29,6 @@ class CustomUserDetails(
     fun getEmail(): String = user.email
     fun getName(): String = user.name
     fun getProfileUrl(): String? = user.profileUrl
+    // 더존 이메일 인증 완료 여부 (ROLE_VERIFIED 보유 시 true)
+    fun isVerified(): Boolean = user.roles?.contains(UserRole.ROLE_VERIFIED) ?: false
 }

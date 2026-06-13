@@ -170,7 +170,8 @@ class AuthController(
                 userId = customUserDetails.getUserId(),
                 email = customUserDetails.getEmail(),
                 name = customUserDetails.getName(),
-                profileUrl = customUserDetails.getProfileUrl()
+                profileUrl = customUserDetails.getProfileUrl(),
+                verified = customUserDetails.isVerified()
             )
 
             log.info("사용자 정보 조회 성공: userId = {}", customUserDetails.getUserId())

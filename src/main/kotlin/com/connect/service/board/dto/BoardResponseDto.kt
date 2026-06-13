@@ -15,11 +15,12 @@ data class BoardResponseDto(
     val deadlineDts: LocalDateTime, // 마감일 (LocalDateTime -> String 변환은 나중에 수행)
     val destination: String, // 목적지
     val maxCapacity: Int, // 최대 모집 인원
-    val currentParticipants: Int // 모집 인원
+    val currentParticipants: Int, // 모집 인원
+    val verified: Boolean = false // 작성자의 더존 이메일 인증 여부 (인증 마크 표시용)
 ) {
     // BoardMst 엔티티를 BoardResponseDto로 변환하는 팩토리 메서드
     companion object {
-        fun from(boardMst: BoardMst): BoardResponseDto {
+        fun from(boardMst: BoardMst, verified: Boolean = false): BoardResponseDto {
             return BoardResponseDto(
                 id = boardMst.id ?: throw IllegalArgumentException("Board ID cannot be null"), // id는 null이 아님을 가정
                 title = boardMst.title,
@@ -32,7 +33,8 @@ data class BoardResponseDto(
                 deadlineDts = boardMst.deadlineDts,
                 destination = boardMst.destination,
                 maxCapacity = boardMst.maxCapacity,
-                currentParticipants = boardMst.currentParticipants
+                currentParticipants = boardMst.currentParticipants,
+                verified = verified
             )
         }
     }
