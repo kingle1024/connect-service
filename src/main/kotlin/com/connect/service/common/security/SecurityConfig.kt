@@ -45,6 +45,10 @@ class SecurityConfig(
                     .requestMatchers("/api/boards/**").permitAll() // 게시판 API 경로
                     // 비밀번호 찾기/더존 인증/날짜 알림 등 계정 관련 경로 허용 (CORS preflight 통과 + 컨트롤러에서 자체 인증 검사)
                     .requestMatchers("/api/account/**").permitAll()
+                    // 채팅/친구/웹소켓 경로 허용 (웹에서 CORS preflight 통과 - JWT 는 필터에서 처리)
+                    .requestMatchers("/api/chat/**").permitAll()
+                    .requestMatchers("/api/friends/**").permitAll()
+                    .requestMatchers("/ws-chat/**").permitAll()
                     .anyRequest().authenticated() // 그 외 모든 요청은 인증 필요
             }
             .headers { headers ->
