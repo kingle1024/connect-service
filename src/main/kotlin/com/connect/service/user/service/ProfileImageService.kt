@@ -10,6 +10,7 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.core.sync.RequestBody
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.S3Client
+import software.amazon.awssdk.services.s3.S3Configuration
 import software.amazon.awssdk.services.s3.model.PutObjectRequest
 import java.net.URI
 import java.util.Base64
@@ -33,6 +34,8 @@ class ProfileImageService(
             .endpointOverride(URI.create(endpoint))
             .region(Region.of("auto")) // R2 는 region "auto"
             .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey)))
+            // R2 호환: path-style 접근(버킷을 경로로) 사용
+            .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build())
             .build()
     }
 
