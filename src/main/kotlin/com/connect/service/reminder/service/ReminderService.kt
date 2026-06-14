@@ -16,7 +16,8 @@ class ReminderService(
     private val userRepository: UserRepository
 ) {
 
-    // 알림 등록. email 미지정 시 계정 이메일 사용. 등록은 누구나 가능(이메일 발송만 인증 사용자 한정 - 배치에서 처리)
+    // 알림 등록. 발송 대상 이메일은 항상 계정(인증) 이메일을 사용 - 별도 입력 받지 않음.
+    // 등록은 누구나 가능(이메일 발송만 인증 사용자 한정 - 배치에서 처리)
     @Transactional
     fun create(userId: String, request: ReminderCreateRequest): DateReminder {
         if (request.content.isBlank()) {
@@ -24,11 +25,10 @@ class ReminderService(
         }
         val user = userRepository.findByUserId(userId)
             ?: throw IllegalArgumentException("사용자를 찾을 수 없습니다.")
-        val email = request.email?.trim()?.takeIf { it.isNotEmpty() } ?: user.email
 
         val reminder = DateReminder(
             userId = userId,
-            email = email,
+            email = user.email, // 계정(인증) 이메일로 발송
             reminderDate = request.reminderDate,
             content = request.content.trim()
         )

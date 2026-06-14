@@ -166,6 +166,8 @@ class AccountService(
         val user = userRepository.findByUserId(userId)
             ?: throw IllegalArgumentException("사용자를 찾을 수 없습니다.")
         user.roles.add(UserRole.ROLE_VERIFIED)
+        // 인증한 이메일을 계정 이메일로 저장 (이후 알림 등 발송은 이 주소로)
+        user.email = email
         return userRepository.save(user)
     }
 

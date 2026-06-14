@@ -123,9 +123,10 @@ class AccountServiceTest {
         // When
         val result = accountService.verifyDouzoneEmail("kakao_1", email, code)
 
-        // Then: ROLE_VERIFIED 부여
+        // Then: ROLE_VERIFIED 부여 + 계정 이메일이 인증 이메일로 갱신
         assertNotNull(result)
         assertTrue(result.roles.contains(UserRole.ROLE_VERIFIED))
+        assertEquals(email, result.email)
     }
 
     @Test
