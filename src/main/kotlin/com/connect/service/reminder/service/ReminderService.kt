@@ -3,6 +3,7 @@ package com.connect.service.reminder.service
 import com.connect.service.reminder.dto.ReminderCreateRequest
 import com.connect.service.reminder.entity.DateReminder
 import com.connect.service.reminder.repository.ReminderRepository
+import com.connect.service.user.domain.UserRole
 import com.connect.service.user.repository.UserRepository
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
@@ -16,8 +17,7 @@ class ReminderService(
     private val userRepository: UserRepository
 ) {
 
-    // 알림 등록. 발송 대상 이메일은 항상 계정(인증) 이메일을 사용 - 별도 입력 받지 않음.
-    // 등록은 누구나 가능(이메일 발송만 인증 사용자 한정 - 배치에서 처리)
+    // 알림 등록. 더존 이메일 인증 사용자만 가능하며, 발송 대상은 계정(인증) 이메일을 사용(별도 입력 없음).
     @Transactional
     fun create(userId: String, request: ReminderCreateRequest): DateReminder {
         if (request.content.isBlank()) {
@@ -25,6 +25,10 @@ class ReminderService(
         }
         val user = userRepository.findByUserId(userId)
             ?: throw IllegalArgumentException("사용자를 찾을 수 없습니다.")
+        // 더존 이메일 인증(ROLE_VERIFIED) 사용자만 알림 기능 사용 가능
+        if (!user.roles.contains(UserRole.ROLE_VERIFIED)) {
+            throw IllegalArgumentException("더존 이메일 인증 후 이용할 수 있습니다.")
+        }
 
         val reminder = DateReminder(
             userId = userId,
