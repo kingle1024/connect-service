@@ -24,7 +24,7 @@ data class Users(
     @Column(name = "password", nullable = false)
     var rawPassword: String, // 비밀번호 (암호화하여 저장)
 
-    val profileUrl: String? = null,
+    var profileUrl: String? = null,
 
     // 계정의 권한 목록
     @ElementCollection(fetch = FetchType.EAGER) // 즉시 로딩
