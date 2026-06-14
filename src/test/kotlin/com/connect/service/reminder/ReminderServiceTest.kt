@@ -48,16 +48,17 @@ class ReminderServiceTest {
     }
 
     @Test
-    @DisplayName("이메일을 지정하면 해당 이메일로 등록한다")
-    fun `이메일_지정시_해당_이메일_사용`() {
+    @DisplayName("요청에 이메일을 넣어도 무시하고 항상 계정(인증) 이메일을 사용한다")
+    fun `요청_이메일_무시하고_계정이메일_사용`() {
         val user = Users(userId = "u1", email = "me@douzone.com", name = "홍길동", rawPassword = "x")
         whenever(userRepository.findByUserId("u1")).thenReturn(user)
         whenever(reminderRepository.save(any<DateReminder>())).thenAnswer { it.arguments[0] as DateReminder }
 
+        // 요청에 다른 이메일을 넣어도 계정 이메일로 등록되어야 함
         val req = ReminderCreateRequest(LocalDate.of(2026, 9, 13), "오후 반차", "custom@douzone.com")
         val result = reminderService.create("u1", req)
 
-        assertEquals("custom@douzone.com", result.email)
+        assertEquals("me@douzone.com", result.email)
     }
 
     @Test
