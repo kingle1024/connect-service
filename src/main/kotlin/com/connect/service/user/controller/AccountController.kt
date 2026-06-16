@@ -181,4 +181,28 @@ class AccountController (
             ResponseEntity.internalServerError().body(ApiResponse.error("프로필 사진 업로드에 실패했습니다."))
         }
     }
+
+    /**
+     * 프로필 사진 삭제 (기본 이미지로)
+     * DELETE /api/account/me/profile-image
+     */
+    @DeleteMapping("/me/profile-image")
+    fun removeProfileImage(
+        authentication: Authentication?
+    ): ResponseEntity<ApiResponse<UserInfoResponse>> {
+        if (authentication == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error("로그인이 필요합니다."))
+        }
+        return try {
+            val updated = profileImageService.clearProfileImage(authentication.name)
+            val info = UserInfoResponse(
+                updated.userId, updated.email, updated.name, updated.profileUrl,
+                updated.roles.contains(UserRole.ROLE_VERIFIED)
+            )
+            ResponseEntity.ok(ApiResponse.success("프로필 사진이 삭제되었습니다.", info))
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.badRequest().body(ApiResponse.error(e.message ?: "잘못된 요청입니다."))
+        }
+    }
 }
