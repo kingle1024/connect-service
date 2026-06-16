@@ -69,6 +69,15 @@ class ProfileImageService(
         return userRepository.save(user)
     }
 
+    // 프로필 사진 삭제 (기본 이미지로 되돌리기). profileUrl 을 비워 기본 아이콘이 보이게 한다.
+    @Transactional
+    fun clearProfileImage(userId: String): Users {
+        val user = userRepository.findByUserId(userId)
+            ?: throw IllegalArgumentException("사용자를 찾을 수 없습니다.")
+        user.profileUrl = null
+        return userRepository.save(user)
+    }
+
     // data URI(data:image/png;base64,xxxx) 형태면 콤마 뒤 실제 base64만 추출
     private fun stripDataUri(s: String): String = if (s.contains(",")) s.substringAfter(",") else s
 
