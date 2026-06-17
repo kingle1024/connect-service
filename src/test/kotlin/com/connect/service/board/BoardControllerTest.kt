@@ -54,8 +54,8 @@ class BoardControllerTest {
         // given: 테스트를 위한 mock 데이터 설정
         val boardId = 999L // 존재하지 않는 ID
 
-        // when: boardService.getBoardById(boardId) 호출 시 Optional.empty() 반환하도록 Mocking
-        `when`(boardService.getBoardById(boardId)).thenReturn(Optional.empty())
+        // when: boardService.getBoardDetail(boardId) 호출 시 null 반환하도록 Mocking
+        `when`(boardService.getBoardDetail(boardId)).thenReturn(null)
 
         // then: MockMvc를 사용하여 HTTP GET 요청을 보내고 결과를 검증
         mockMvc.perform(
@@ -64,31 +64,32 @@ class BoardControllerTest {
         )
             .andExpect(status().isNotFound) // HTTP 상태 코드가 404 Not Found인지 검증
 
-        // verify: boardService.getBoardById(boardId) 메서드가 1번 호출되었는지 검증
-        verify(boardService, times(1)).getBoardById(boardId)
+        // verify: boardService.getBoardDetail(boardId) 메서드가 1번 호출되었는지 검증
+        verify(boardService, times(1)).getBoardDetail(boardId)
     }
 
     @Test
     fun `getBoardDetail - 게시글이 존재할 경우 200 OK와 게시글 반환`() {
         // given: 테스트를 위한 mock 데이터 설정
         val boardId = 1L
-        val expectedBoard = BoardMst(
+        val expectedBoard = BoardResponseDto(
             id = boardId,
             title = "새로운 제목",
             content = "더욱 풍성한 내용입니다.",
             category = "운동",
+            commentCount = 3,
             userId = "100",
             userName = "김테스트",
+            insertDts = LocalDateTime.now(),
             deadlineDts = LocalDateTime.of(2026, 1, 31, 23, 59),
             destination = "한강공원",
             maxCapacity = 5,
             currentParticipants = 2,
-            commentCount = 3,
-            isDeleted = false
+            verified = true
         )
 
-        // when: boardService.getBoardById(boardId) 호출 시 Optional.of(expectedBoard) 반환하도록 Mocking
-        `when`(boardService.getBoardById(boardId)).thenReturn(Optional.of(expectedBoard))
+        // when: boardService.getBoardDetail(boardId) 호출 시 DTO 반환하도록 Mocking
+        `when`(boardService.getBoardDetail(boardId)).thenReturn(expectedBoard)
 
         // then: MockMvc를 사용하여 HTTP GET 요청을 보내고 결과를 검증
         mockMvc.perform(
@@ -99,9 +100,10 @@ class BoardControllerTest {
             .andExpect(jsonPath("$.id").value(expectedBoard.id)) // 응답 본문의 id 필드 검증
             .andExpect(jsonPath("$.title").value(expectedBoard.title)) // 응답 본문의 title 필드 검증
             .andExpect(jsonPath("$.content").value(expectedBoard.content)) // 응답 본문의 content 필드 검증
+            .andExpect(jsonPath("$.verified").value(true)) // 작성자 인증 여부 검증
 
-        // verify: boardService.getBoardById(boardId) 메서드가 1번 호출되었는지 검증
-        verify(boardService, times(1)).getBoardById(boardId)
+        // verify: boardService.getBoardDetail(boardId) 메서드가 1번 호출되었는지 검증
+        verify(boardService, times(1)).getBoardDetail(boardId)
     }
 
     @Test

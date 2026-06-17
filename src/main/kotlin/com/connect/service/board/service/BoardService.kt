@@ -5,6 +5,8 @@ import com.connect.service.board.dto.BoardResponseDto
 import com.connect.service.board.dto.PaginatedBoardResponse
 import com.connect.service.board.entity.BoardMst
 import com.connect.service.board.repository.BoardRepository
+import com.connect.service.user.domain.UserRole
+import com.connect.service.user.repository.UserRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.Optional
@@ -14,14 +16,30 @@ import org.springframework.http.HttpStatus
 import org.springframework.web.server.ResponseStatusException
 
 @Service
-class BoardService(private val boardRepository: BoardRepository) {
+class BoardService(
+    private val boardRepository: BoardRepository,
+    private val userRepository: UserRepository
+) {
+
+    // 주어진 작성자 ID들 중 더존 이메일 인증(ROLE_VERIFIED)된 사용자 ID 집합을 반환
+    private fun verifiedUserIds(userIds: Collection<String>): Set<String> {
+        val distinct = userIds.distinct()
+        if (distinct.isEmpty()) {
+            return emptySet()
+        }
+        return userRepository.findByUserIdIn(distinct)
+            .filter { it.roles.contains(UserRole.ROLE_VERIFIED) }
+            .map { it.userId }
+            .toSet()
+    }
 
     @Transactional(readOnly = true)
     fun getAllBoards(pageable: Pageable): PaginatedBoardResponse {
         val boardPage: Page<BoardMst> = boardRepository.findAllByIsDeletedFalse(pageable)
 
+        val verified = verifiedUserIds(boardPage.content.map { it.userId })
         val boardResponseDtos: List<BoardResponseDto> = boardPage.content
-            .map { BoardResponseDto.from(it) } // 각 BoardMst 엔티티를 DTO로 변환
+            .map { BoardResponseDto.from(it, verified.contains(it.userId)) }
 
         // 다음 페이지가 있다면 다음 페이지 번호를, 없으면 null 반환
         val nextPageToken: Int? = if (boardPage.hasNext()) {
@@ -41,8 +59,9 @@ class BoardService(private val boardRepository: BoardRepository) {
     fun getBoardsByAuthor(userId: String, pageable: Pageable): PaginatedBoardResponse {
         val boardPage: Page<BoardMst> = boardRepository.findAllByUserIdAndIsDeletedFalse(userId, pageable)
 
+        val verified = verifiedUserIds(boardPage.content.map { it.userId })
         val boardResponseDtos: List<BoardResponseDto> = boardPage.content
-            .map { BoardResponseDto.from(it) }
+            .map { BoardResponseDto.from(it, verified.contains(it.userId)) }
 
         val nextPageToken: Int? = if (boardPage.hasNext()) {
             boardPage.number + 1
@@ -54,6 +73,14 @@ class BoardService(private val boardRepository: BoardRepository) {
             nextPageToken = nextPageToken,
             posts = boardResponseDtos
         )
+    }
+
+    // 게시글 상세 (작성자 인증 여부 verified 포함)
+    @Transactional(readOnly = true)
+    fun getBoardDetail(id: Long): BoardResponseDto? {
+        val board = boardRepository.findById(id).orElse(null) ?: return null
+        val verified = verifiedUserIds(listOf(board.userId)).contains(board.userId)
+        return BoardResponseDto.from(board, verified)
     }
 
     @Transactional

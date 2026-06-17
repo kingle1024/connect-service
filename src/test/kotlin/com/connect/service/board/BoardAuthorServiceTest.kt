@@ -3,6 +3,7 @@ package com.connect.service.board
 import com.connect.service.board.entity.BoardMst
 import com.connect.service.board.repository.BoardRepository
 import com.connect.service.board.service.BoardService
+import com.connect.service.user.repository.UserRepository
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -24,6 +25,9 @@ class BoardAuthorServiceTest {
 
     @Mock
     private lateinit var boardRepository: BoardRepository
+
+    @Mock
+    private lateinit var userRepository: UserRepository
 
     @InjectMocks
     private lateinit var boardService: BoardService
@@ -49,6 +53,7 @@ class BoardAuthorServiceTest {
         val boards = listOf(sampleBoard(1, "kakao_1"), sampleBoard(2, "kakao_1"))
         whenever(boardRepository.findAllByUserIdAndIsDeletedFalse(eq("kakao_1"), any()))
             .thenReturn(PageImpl(boards, pageable, boards.size.toLong()))
+        whenever(userRepository.findByUserIdIn(any())).thenReturn(emptyList())
 
         // When
         val result = boardService.getBoardsByAuthor("kakao_1", pageable)

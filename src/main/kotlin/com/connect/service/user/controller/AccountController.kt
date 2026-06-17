@@ -1,12 +1,15 @@
 package com.connect.service.user.controller
 
 import com.connect.service.common.ApiResponse
+import com.connect.service.user.domain.UserRole
 import com.connect.service.user.dto.EmailRequest
 import com.connect.service.user.dto.ResetPasswordRequest
+import com.connect.service.user.dto.ProfileImageRequest
 import com.connect.service.user.dto.UpdateNameRequest
 import com.connect.service.user.dto.UserInfoResponse
 import com.connect.service.user.dto.VerificationRequest
 import com.connect.service.user.service.AccountService
+import com.connect.service.user.service.ProfileImageService
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
@@ -16,7 +19,8 @@ import org.springframework.web.bind.annotation.*
 @RequestMapping("/api/account")
 @CrossOrigin
 class AccountController (
-    private val accountService: AccountService
+    private val accountService: AccountService,
+    private val profileImageService: ProfileImageService
 ){
     /**
      * 비밀번호 찾기: 인증번호 발송 요청
@@ -93,8 +97,110 @@ class AccountController (
         }
         return try {
             val updated = accountService.updateUserName(authentication.name, request.name)
-            val info = UserInfoResponse(updated.userId, updated.email, updated.name, updated.profileUrl)
+            val info = UserInfoResponse(
+                updated.userId, updated.email, updated.name, updated.profileUrl,
+                updated.roles.contains(UserRole.ROLE_VERIFIED)
+            )
             ResponseEntity.ok(ApiResponse.success("이름이 변경되었습니다.", info))
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.badRequest().body(ApiResponse.error(e.message ?: "잘못된 요청입니다."))
+        }
+    }
+
+    /**
+     * 더존 이메일 인증번호 발송 (@douzone.com 만 허용)
+     * POST /api/account/verify-douzone/send-code
+     */
+    @PostMapping("/verify-douzone/send-code")
+    fun sendDouzoneCode(@RequestBody request: EmailRequest): ResponseEntity<ApiResponse<Unit>> {
+        return try {
+            accountService.sendDouzoneVerificationCode(request.email)
+            ResponseEntity.ok(ApiResponse.success("인증번호가 이메일로 발송되었습니다."))
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.badRequest().body(ApiResponse.error(e.message ?: "잘못된 요청입니다."))
+        } catch (e: Exception) {
+            ResponseEntity.internalServerError().body(ApiResponse.error("인증번호 발송에 실패했습니다. 잠시 후 다시 시도해주세요."))
+        }
+    }
+
+    /**
+     * 더존 이메일 인증 확정 (성공 시 ROLE_VERIFIED 부여)
+     * POST /api/account/verify-douzone/confirm
+     */
+    @PostMapping("/verify-douzone/confirm")
+    fun confirmDouzone(
+        @RequestBody request: VerificationRequest,
+        authentication: Authentication?
+    ): ResponseEntity<ApiResponse<UserInfoResponse>> {
+        if (authentication == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error("로그인이 필요합니다."))
+        }
+        return try {
+            val updated = accountService.verifyDouzoneEmail(authentication.name, request.email, request.code)
+                ?: return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("인증번호가 일치하지 않거나 만료되었습니다."))
+            val info = UserInfoResponse(
+                updated.userId, updated.email, updated.name, updated.profileUrl,
+                updated.roles.contains(UserRole.ROLE_VERIFIED)
+            )
+            ResponseEntity.ok(ApiResponse.success("더존 이메일 인증이 완료되었습니다.", info))
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.badRequest().body(ApiResponse.error(e.message ?: "잘못된 요청입니다."))
+        }
+    }
+
+    /**
+     * 프로필 사진 업로드 (R2 저장 후 URL 을 profileUrl 에 저장)
+     * POST /api/account/me/profile-image
+     */
+    @PostMapping("/me/profile-image")
+    fun updateProfileImage(
+        @RequestBody request: ProfileImageRequest,
+        authentication: Authentication?
+    ): ResponseEntity<ApiResponse<UserInfoResponse>> {
+        if (authentication == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error("로그인이 필요합니다."))
+        }
+        return try {
+            val updated = profileImageService.updateProfileImage(
+                authentication.name, request.imageBase64, request.contentType
+            )
+            val info = UserInfoResponse(
+                updated.userId, updated.email, updated.name, updated.profileUrl,
+                updated.roles.contains(UserRole.ROLE_VERIFIED)
+            )
+            ResponseEntity.ok(ApiResponse.success("프로필 사진이 변경되었습니다.", info))
+        } catch (e: IllegalArgumentException) {
+            ResponseEntity.badRequest().body(ApiResponse.error(e.message ?: "잘못된 요청입니다."))
+        } catch (e: IllegalStateException) {
+            // R2 미설정 등
+            ResponseEntity.internalServerError().body(ApiResponse.error(e.message ?: "이미지 업로드 설정 오류입니다."))
+        } catch (e: Exception) {
+            ResponseEntity.internalServerError().body(ApiResponse.error("프로필 사진 업로드에 실패했습니다."))
+        }
+    }
+
+    /**
+     * 프로필 사진 삭제 (기본 이미지로)
+     * DELETE /api/account/me/profile-image
+     */
+    @DeleteMapping("/me/profile-image")
+    fun removeProfileImage(
+        authentication: Authentication?
+    ): ResponseEntity<ApiResponse<UserInfoResponse>> {
+        if (authentication == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error("로그인이 필요합니다."))
+        }
+        return try {
+            val updated = profileImageService.clearProfileImage(authentication.name)
+            val info = UserInfoResponse(
+                updated.userId, updated.email, updated.name, updated.profileUrl,
+                updated.roles.contains(UserRole.ROLE_VERIFIED)
+            )
+            ResponseEntity.ok(ApiResponse.success("프로필 사진이 삭제되었습니다.", info))
         } catch (e: IllegalArgumentException) {
             ResponseEntity.badRequest().body(ApiResponse.error(e.message ?: "잘못된 요청입니다."))
         }
