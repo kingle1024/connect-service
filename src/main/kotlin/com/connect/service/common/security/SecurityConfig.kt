@@ -48,6 +48,9 @@ class SecurityConfig(
                     // 채팅/친구/웹소켓 경로 허용 (웹에서 CORS preflight 통과 - JWT 는 필터에서 처리)
                     .requestMatchers("/api/chat/**").permitAll()
                     .requestMatchers("/api/friends/**").permitAll()
+                    // 개선/버그 요청은 로그인 없이도 접수할 수 있어야 해서 열어둔다
+                    // (작성자 구분은 컨트롤러/서비스가 Authentication 또는 guestKey 로 처리)
+                    .requestMatchers("/api/inquiries/**").permitAll()
                     .requestMatchers("/ws-chat/**").permitAll()
                     .anyRequest().authenticated() // 그 외 모든 요청은 인증 필요
             }
