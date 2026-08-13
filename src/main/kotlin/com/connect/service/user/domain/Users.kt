@@ -30,7 +30,11 @@ data class Users(
     @ElementCollection(fetch = FetchType.EAGER) // 즉시 로딩
     @CollectionTable(name = "user_roles", joinColumns = [JoinColumn(name = "user_id")])
     @Enumerated(EnumType.STRING)
-    var roles: MutableSet<UserRole> = mutableSetOf(UserRole.ROLE_USER)
+    var roles: MutableSet<UserRole> = mutableSetOf(UserRole.ROLE_USER),
+
+    // 계정 활성 여부. 관리자가 백오피스에서 정지시키면 false 가 되고 로그인이 막힌다.
+    @Column(nullable = false)
+    var enabled: Boolean = true
 ) : UserDetails {
 
     override fun getAuthorities(): MutableCollection<out GrantedAuthority> =
@@ -40,5 +44,5 @@ data class Users(
     override fun isAccountNonExpired(): Boolean = true // 계정 만료 여부
     override fun isAccountNonLocked(): Boolean = true // 계정 잠금 여부
     override fun isCredentialsNonExpired(): Boolean = true // 비밀번호 만료 여부
-    override fun isEnabled(): Boolean = true // 계정 활성화 여부
+    override fun isEnabled(): Boolean = enabled // 계정 활성화 여부 (관리자가 정지하면 false)
 }

@@ -22,7 +22,8 @@ class CustomUserDetails(
     override fun isAccountNonExpired(): Boolean = true
     override fun isAccountNonLocked(): Boolean = true
     override fun isCredentialsNonExpired(): Boolean = true
-    override fun isEnabled(): Boolean = true
+    // 관리자가 백오피스에서 정지시킨 계정은 로그인/토큰 사용이 모두 막힌다.
+    override fun isEnabled(): Boolean = user.enabled
 
     // 추가 정보 getter는 기존과 동일
     fun getUserId(): String = user.userId // user.id는 Long? 타입이므로, String으로 필요한 경우 적절히 변환

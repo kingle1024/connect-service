@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/api/boards/{boardId}/comments") // 게시글 ID 아래에 댓글 엔드포인트
+@CrossOrigin(origins = ["http://localhost:3000", "http://localhost:8082"], allowCredentials = "true")
 class CommentController(private val commentService: CommentService) {
 
     // 특정 게시글의 모든 댓글 조회

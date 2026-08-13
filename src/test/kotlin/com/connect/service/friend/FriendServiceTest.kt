@@ -11,6 +11,7 @@ import com.connect.service.user.repository.UserRepository
 import org.mockito.ArgumentMatchers
 import org.mockito.Mockito.mock
 import org.mockito.kotlin.any
+import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.springframework.boot.test.context.SpringBootTest
@@ -42,7 +43,9 @@ class FriendServiceTest {
         whenever(userRepository.findByUserId(receiverUserId)).thenReturn(receiverUser)
         whenever(friendshipRepository.findByUserIdAndFriendId(currentUserId, receiverUserId)).thenReturn(null)
         whenever(friendRequestRepository.findBySenderIdAndReceiverId(currentUserId, receiverUserId)).thenReturn(null)
-        whenever(friendRequestRepository.save(any())).thenAnswer { it.arguments[0] as FriendRequest }
+        // save 의 반환 타입은 플랫폼 타입(FriendRequest!)이라 whenever(mock.save(any())) 형태로 감싸면
+        // 스터빙 시점에 목이 돌려주는 null 에 코틀린 null 체크가 걸려 NPE 가 난다. doAnswer 로 스터빙한다.
+        doAnswer { it.arguments[0] as FriendRequest }.whenever(friendRequestRepository).save(any())
 
 
         // 실제 서비스 호출
