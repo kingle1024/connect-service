@@ -6,7 +6,6 @@ import com.connect.service.meal.service.MealService
 import mu.KotlinLogging
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import org.springframework.web.bind.annotation.CrossOrigin
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
@@ -16,7 +15,6 @@ private val logger = KotlinLogging.logger {}
 
 @RestController
 @RequestMapping("/api/public/meal") // /api/public/** 는 SecurityConfig 에서 허용 (사내 식단이라 로그인 불필요)
-@CrossOrigin
 class MealController(
     private val mealService: MealService
 ) {

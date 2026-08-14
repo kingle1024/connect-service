@@ -16,7 +16,6 @@ import org.springframework.security.core.Authentication
 
 @RestController
 @RequestMapping("/api/boards")
-@CrossOrigin(origins = ["http://localhost:3000", "http://localhost:8082"], allowCredentials = "true")
 class BoardController(private val boardService: BoardService) {
 
     @GetMapping

@@ -4,6 +4,7 @@ import com.connect.service.common.jwt.JwtAuthenticationFilter
 import com.connect.service.common.jwt.JwtTokenProvider
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.security.config.Customizer
 import org.springframework.security.authentication.AuthenticationManager
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
@@ -36,10 +37,16 @@ class SecurityConfig(
     @Bean
     fun filterChain(http: HttpSecurity): SecurityFilterChain {
         http
+            // CorsConfig 의 CorsConfigurationSource 빈을 적용한다.
+            // 이걸 켜야 preflight(OPTIONS) 가 시큐리티 필터 체인에서 바로 처리된다.
+            .cors(Customizer.withDefaults())
             .csrf { it.disable() } // REST API에서는 CSRF 보호가 필요 없으므로 비활성화
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) } // JWT 사용 시 세션 사용 안 함 (Stateless)
             .authorizeHttpRequests { authorize ->
                 authorize
+                    // sendError() 는 /error 로 재디스패치되는데, 여기가 막혀 있으면
+                    // 400/404 를 보내도 클라이언트에는 전부 403 으로 보인다
+                    .requestMatchers("/error").permitAll()
                     .requestMatchers("/api/auth/**").permitAll() // 로그인, 회원가입 등 인증 관련 경로는 모두 허용
                     .requestMatchers("/api/public/**").permitAll() // 공개 API 경로
                     .requestMatchers("/api/boards/**").permitAll() // 게시판 API 경로

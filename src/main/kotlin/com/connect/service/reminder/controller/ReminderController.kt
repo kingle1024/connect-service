@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/api/account/reminders") // /api/account/** 는 SecurityConfig 에서 허용되므로 별도 설정 불필요
-@CrossOrigin
 class ReminderController(
     private val reminderService: ReminderService
 ) {

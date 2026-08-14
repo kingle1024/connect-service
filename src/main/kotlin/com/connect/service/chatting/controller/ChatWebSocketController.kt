@@ -13,12 +13,10 @@ import org.springframework.messaging.handler.annotation.Payload
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor
 import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Controller
-import org.springframework.web.bind.annotation.CrossOrigin
 import java.time.LocalDateTime
 import kotlin.collections.set
 
 @Controller
-@CrossOrigin(origins = ["http://localhost:3000", "http://localhost:8082"], allowCredentials = "true")
 class ChatWebSocketController (
     private val messagingTemplate: SimpMessagingTemplate,
     private val chatRoomService: ChatRoomService,

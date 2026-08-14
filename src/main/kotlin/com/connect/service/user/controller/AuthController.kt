@@ -27,7 +27,6 @@ import org.springframework.security.core.Authentication
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin
 class AuthController(
     private val authenticationManager: AuthenticationManager,
     private val jwtTokenProvider: JwtTokenProvider,

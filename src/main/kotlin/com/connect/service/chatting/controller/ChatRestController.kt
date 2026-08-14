@@ -14,7 +14,6 @@ import com.connect.service.chatting.service.ChatRoomService
 import com.connect.service.user.service.CustomUserDetailsService
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import org.springframework.web.bind.annotation.CrossOrigin
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -26,7 +25,6 @@ import org.springframework.web.bind.annotation.RestController
 
 @RestController
 @RequestMapping("/api/chat")
-@CrossOrigin(origins = ["http://localhost:3000", "http://localhost:8082"], allowCredentials = "true")
 class ChatRestController(
     private val chatRoomService: ChatRoomService,
     private val chatMessageService: ChatMessageService,

@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import java.net.URI
+import java.net.URISyntaxException
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.time.LocalDateTime
@@ -124,12 +126,58 @@ class KakaoAuthController(
         response.sendRedirect(targetUrl)
     }
 
-    // 화이트리스트에 등록된 접두사로 시작하는지 검증
+    // 화이트리스트 검증.
+    //
+    // 웹(http/https) 주소는 origin(scheme+host+port) 단위로 정확히 비교한다.
+    // 예전처럼 startsWith 로만 보면 화이트리스트에 "https://connect-go.app" 이 있을 때
+    // "https://connect-go.app.evil.com" 이나 "https://connect-go.app@evil.com" 까지 통과해
+    // 오픈 리다이렉트가 된다. 이 콜백은 accessToken/refreshToken 을 쿼리로 실어 보내므로
+    // 리다이렉트 대상이 뚫리면 곧바로 계정 탈취로 이어진다.
+    //
+    // exp://, connect:// 같은 앱 딥링크는 host 개념이 없어서 기존대로 접두사로 검사한다.
     private fun isAllowedRedirect(uri: String): Boolean {
-        return allowedRedirectUris.split(",")
+        val patterns = allowedRedirectUris.split(",")
             .map { it.trim() }
             .filter { it.isNotEmpty() }
-            .any { uri.startsWith(it) }
+
+        val parsed = try {
+            URI(uri)
+        } catch (e: URISyntaxException) {
+            log.warn("파싱할 수 없는 redirectUri: {}", uri)
+            return false
+        }
+
+        val scheme = parsed.scheme?.lowercase()
+        if (scheme == "http" || scheme == "https") {
+            // 호스트를 못 뽑는 http(s) 주소는 접두사 검사로 흘려보내지 않고 바로 거부한다
+            val host = parsed.host?.lowercase() ?: return false
+            val origin = if (parsed.port == -1) "$scheme://$host" else "$scheme://$host:${parsed.port}"
+            return patterns.any { originMatches(it, origin) }
+        }
+
+        return patterns.any { uri.startsWith(it) }
+    }
+
+    // 화이트리스트 항목 하나와 요청 origin 을 비교한다.
+    // 호스트는 항상 정확히 일치해야 하고, 포트만 다음 규칙으로 느슨하게 본다.
+    //  - "http://localhost"            : 포트를 안 적으면 그 호스트의 모든 포트 허용
+    //                                    (expo 개발 서버 포트가 매번 바뀌어서 필요하다)
+    //  - "http://localhost:*"          : 위와 같은 뜻을 명시적으로 쓴 형태
+    //  - "https://connect-go.app:8443" : 포트를 적으면 그 포트만 허용
+    private fun originMatches(pattern: String, origin: String): Boolean {
+        val normalized = pattern.trimEnd('/').lowercase()
+        if (!normalized.startsWith("http://") && !normalized.startsWith("https://")) {
+            return false
+        }
+
+        val base = normalized.removeSuffix(":*")
+        val hasExplicitPort = base.substringAfter("://").contains(":")
+        if (hasExplicitPort) {
+            return origin == base
+        }
+
+        // "$base:" 로 비교해야 http://localhost 가 http://localhost.evil.com 을 통과시키지 않는다
+        return origin == base || origin.startsWith("$base:")
     }
 
     private fun encode(value: String): String =
