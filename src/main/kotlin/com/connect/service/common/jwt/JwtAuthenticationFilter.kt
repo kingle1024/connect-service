@@ -5,6 +5,7 @@ import jakarta.servlet.ServletException
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.web.filter.OncePerRequestFilter
 import java.io.IOException
 
@@ -25,6 +26,15 @@ class JwtAuthenticationFilter(
         if (token != null && jwtTokenProvider.validateToken(token)) {
             // 토큰이 유효할 경우 토큰에서 Authentication 객체를 가지고 와서 SecurityContext에 저장
             val authentication = jwtTokenProvider.getAuthentication(token)
+
+            // 관리자가 정지시킨 계정은 이미 발급된 Access Token 으로도 통과시키지 않는다.
+            // (Access Token 만료를 기다리면 정지가 최대 1시간 늦게 적용된다)
+            val principal = authentication.principal
+            if (principal is UserDetails && !principal.isEnabled) {
+                filterChain.doFilter(request, response)
+                return
+            }
+
             SecurityContextHolder.getContext().authentication = authentication
         }
 

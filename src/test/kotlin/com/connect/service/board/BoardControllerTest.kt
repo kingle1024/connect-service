@@ -24,7 +24,9 @@ import org.mockito.kotlin.eq
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import org.springframework.data.domain.Pageable
+import org.springframework.http.HttpStatus
 import org.springframework.security.test.context.support.WithMockUser
+import org.springframework.web.server.ResponseStatusException
 import java.util.Optional
 
 @WebMvcTest(BoardController::class)
@@ -126,7 +128,11 @@ class BoardControllerTest {
             nextPageToken = 2,
             posts = boardList
         )
-        `when`(boardService.getAllBoards(mockitoAny<Pageable>())).thenReturn(paginatedResponseWithNextPage)
+        // getAllBoards 는 필터 파라미터(카테고리/도착지/제목/내용/모집중)를 기본값으로 갖고 있다.
+        // Kotlin 기본값은 실제로 6개 인자 호출로 컴파일되므로 목에서도 6개를 모두 매처로 줘야 한다.
+        `when`(boardService.getAllBoards(
+            mockitoAny<Pageable>(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), anyBoolean()
+        )).thenReturn(paginatedResponseWithNextPage)
 
         // when
         mockMvc.perform(get("/api/boards")
@@ -140,7 +146,9 @@ class BoardControllerTest {
             .andExpect(jsonPath("$.nextPageToken").value(2))
 
         // verify
-        verify(boardService).getAllBoards(mockitoAny<Pageable>())
+        verify(boardService).getAllBoards(
+            mockitoAny<Pageable>(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), anyBoolean()
+        )
     }
 
     @Test
@@ -158,9 +166,10 @@ class BoardControllerTest {
             nextPageToken = null,
             posts = boardList
         )
-        // Mocking 시에도 `mockitoAny()` 사용
-        `when`(boardService.getAllBoards(mockitoAny<Pageable>()))
-            .thenReturn(paginatedResponseNoNextPage)
+        // Mocking 시에도 `mockitoAny()` 사용 (필터 인자까지 6개 모두 매처로 지정)
+        `when`(boardService.getAllBoards(
+            mockitoAny<Pageable>(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), anyBoolean()
+        )).thenReturn(paginatedResponseNoNextPage)
 
         // when
         mockMvc.perform(get("/api/boards")
@@ -172,7 +181,9 @@ class BoardControllerTest {
             .andExpect(jsonPath("$.nextPageToken").isEmpty)
 
         // verify
-        verify(boardService).getAllBoards(mockitoAny<Pageable>())
+        verify(boardService).getAllBoards(
+            mockitoAny<Pageable>(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), anyBoolean()
+        )
     }
 
     @Test
@@ -208,7 +219,8 @@ class BoardControllerTest {
             isDeleted = false // 기본값
         )
 
-        given(boardService.createBoard(request)).willReturn(createdBoard)
+        // 작성자는 요청 본문이 아니라 토큰에서 가져오므로 두 번째 인자로 로그인 사용자가 넘어간다.
+        given(boardService.createBoard(eq(request), eq("initialUserId"))).willReturn(createdBoard)
 
         // When & Then: POST 요청을 보내고 결과 검증
         mockMvc.perform(post("/api/boards")
@@ -228,36 +240,34 @@ class BoardControllerTest {
        // Given (테스트를 위한 사전 준비):
        val boardId = 1L
        val initialUserId = "testUser@example.com" // 가상의 로그인 사용자 ID
-       val initialUserName = "테스트사용자" // BoardMst에 포함될 사용자 이름
+       val initialUserName = "테스트사용자"
        val updatedTitle = "수정된 제목입니다."
        val updatedContent = "새로운 내용으로 변경했습니다."
        val initialCategory = "스터디"
        val updatedDeadline = LocalDateTime.now().plusDays(2).withNano(0) // 정밀도 제거
 
-       // 서비스가 반환할 BoardMst 객체 (업데이트된 상태)
-       val updatedBoard = BoardMst(
+       // 서비스가 반환할 DTO (업데이트된 상태)
+       val updatedBoard = BoardResponseDto(
            id = boardId,
            title = updatedTitle,
            content = updatedContent,
            category = initialCategory,
+           commentCount = 10,
            userId = initialUserId, // 요청 보낸 사용자 ID와 동일하게 설정
            userName = initialUserName,
+           insertDts = LocalDateTime.now().minusDays(1).withNano(0),
            deadlineDts = updatedDeadline,
            destination = "업데이트된 목적지",
            maxCapacity = 5,
            currentParticipants = 3,
-           commentCount = 10,
-           isDeleted = false
+           verified = false
        )
 
-       // Mocking: boardService.updateBoard() 호출 시 updatedBoard를 반환하도록 설정
-       // 컨트롤러의 updateBoard 메서드는 request.id, request.title, request.content, request.author를 서비스로 넘기므로,
-       // Mockito의 given()도 이에 맞춰야 한다.
+       // Mocking: 컨트롤러는 요청 본문(UpdateBoardRequest)과 토큰에서 꺼낸 userId를 서비스로 넘긴다.
+       // 작성자는 요청 본문이 아니라 인증 정보에서만 오므로 두 번째 인자를 검증한다.
        given(boardService.updateBoard(
-           eq(boardId), // request.id (pathId와 같음)
-           eq(updatedTitle), // request.title
-           eq(updatedContent), // request.content
-           eq(initialUserId) // request.author
+           mockitoAny<UpdateBoardRequest>(),
+           eq(initialUserId)
        )).willReturn(updatedBoard)
 
        // 요청 본문으로 보낼 데이터
@@ -265,12 +275,15 @@ class BoardControllerTest {
            id = boardId, // path ID와 동일하게 설정하여 IllegalArgumentException 회피
            title = updatedTitle,
            content = updatedContent,
-           author = initialUserId // request body에도 author 정보 포함
+           category = initialCategory,
+           destination = "업데이트된 목적지",
+           maxCapacity = 5,
+           deadlineDts = updatedDeadline
        )
 
        // When (PUT 요청 실행):
        mockMvc.perform(put("/api/boards/{id}", boardId) // 컨트롤러 @PutMapping("/{id}") 경로와 일치
-           .with(user(initialUserId)) // 로그인한 사용자 정보 (initialUserId를 `author`로 사용)
+           .with(user(initialUserId)) // 로그인한 사용자 정보 (토큰의 작성자로 쓰인다)
            .with(csrf())               // CSRF 토큰 추가 (PUT 요청이므로 필수)
            .contentType(MediaType.APPLICATION_JSON)
            .content(objectMapper.writeValueAsString(updateRequest))) // UpdateBoardRequest를 JSON으로 변환하여 요청 본문에 넣음
@@ -278,17 +291,17 @@ class BoardControllerTest {
            .andExpect(jsonPath("$.id").value(boardId)) // JSON 응답의 id 필드 검증
            .andExpect(jsonPath("$.title").value(updatedTitle)) // JSON 응답의 title 필드 검증
            .andExpect(jsonPath("$.content").value(updatedContent)) // JSON 응답의 content 필드 검증
+           .andExpect(jsonPath("$.category").value(initialCategory)) // 카테고리도 수정 대상이다
+           .andExpect(jsonPath("$.destination").value("업데이트된 목적지"))
+           .andExpect(jsonPath("$.maxCapacity").value(5))
            .andExpect(jsonPath("$.userId").value(initialUserId)) // userId도 검증
            .andExpect(jsonPath("$.userName").value(initialUserName)) // userName도 검증
            .andExpect(jsonPath("$.deadlineDts").value(updatedDeadline.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)))
 
 
        // Then (서비스 호출 검증):
-       // boardService.updateBoard()가 정확히 한 번, 특정 인자들로 호출되었는지 검증
        verify(boardService, times(1)).updateBoard(
-           eq(boardId),
-           eq(updatedTitle),
-           eq(updatedContent),
+           mockitoAny<UpdateBoardRequest>(),
            eq(initialUserId)
        )
    }
@@ -296,27 +309,55 @@ class BoardControllerTest {
     @Test
     fun `존재하지 않는 게시글을 수정 시도 시 404 Not Found를 반환해야 한다`() {
         val nonExistentId = 999L // 존재하지 않는 가상의 ID
-        val updatedTitle = "새 제목"
-        val updatedContent = "새 내용"
         val updateRequest = UpdateBoardRequest(
             id = nonExistentId,
-            title = updatedTitle,
-            content = updatedContent
+            title = "새 제목",
+            content = "새 내용",
+            category = "스터디",
+            destination = "서울",
+            maxCapacity = 5,
+            deadlineDts = LocalDateTime.now().plusDays(1).withNano(0)
         )
 
-        // Mocking: boardService.updateBoard()가 호출되면 NoSuchElementException을 던지도록 설정
-        given(boardService.updateBoard(nonExistentId, updatedTitle, updatedContent, null))
-            .willThrow(NoSuchElementException("Board with ID $nonExistentId not found"))
+        // Mocking: 서비스가 ResponseStatusException(404)을 던지도록 설정
+        given(boardService.updateBoard(mockitoAny<UpdateBoardRequest>(), anyString()))
+            .willThrow(ResponseStatusException(HttpStatus.NOT_FOUND, "게시글을 찾을 수 없습니다: $nonExistentId"))
 
         mockMvc.perform(put("/api/boards/{id}", nonExistentId)
-            .with(user("initialUserId")) // 로그인한 사용자 정보 (initialUserId를 `author`로 사용)
+            .with(user("initialUserId"))
             .with(csrf())               // CSRF 토큰 추가 (PUT 요청이므로 필수)
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(updateRequest)))
             .andExpect(status().isNotFound) // 404 Not Found 반환 검증
-            .andExpect(content().string("요청하신 리소스를 찾을 수 없습니다: Board with ID $nonExistentId not found")) // 에러 메시지 검증 (GlobalExceptionHandler 메시지)
+            // GlobalExceptionHandler가 ResponseStatusException의 reason을 그대로 내려준다
+            .andExpect(content().string("게시글을 찾을 수 없습니다: $nonExistentId"))
 
-        verify(boardService, times(1)).updateBoard(nonExistentId, updatedTitle, updatedContent, null)
+        verify(boardService, times(1)).updateBoard(mockitoAny<UpdateBoardRequest>(), anyString())
+    }
+
+    @Test
+    fun `본인 글이 아니면 수정 시 403 Forbidden을 반환해야 한다`() {
+        val boardId = 1L
+        val updateRequest = UpdateBoardRequest(
+            id = boardId,
+            title = "남의 글 제목",
+            content = "남의 글 내용",
+            category = "스터디",
+            destination = "서울",
+            maxCapacity = 5,
+            deadlineDts = LocalDateTime.now().plusDays(1).withNano(0)
+        )
+
+        given(boardService.updateBoard(mockitoAny<UpdateBoardRequest>(), anyString()))
+            .willThrow(ResponseStatusException(HttpStatus.FORBIDDEN, "게시글을 수정할 권한이 없습니다."))
+
+        mockMvc.perform(put("/api/boards/{id}", boardId)
+            .with(user("otherUser@example.com"))
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(updateRequest)))
+            .andExpect(status().isForbidden)
+            .andExpect(content().string("게시글을 수정할 권한이 없습니다."))
     }
 
     @Test
@@ -327,7 +368,11 @@ class BoardControllerTest {
         val updateRequest = UpdateBoardRequest(
             id = bodyId, // 본문 ID가 경로 ID와 다름
             title = "수정된 제목",
-            content = "수정된 내용"
+            content = "수정된 내용",
+            category = "스터디",
+            destination = "서울",
+            maxCapacity = 5,
+            deadlineDts = LocalDateTime.now().plusDays(1).withNano(0)
         )
 
         // 이 경우, 컨트롤러의 자체 로직(id != request.id 체크)이 먼저 실행되므로
@@ -335,13 +380,31 @@ class BoardControllerTest {
         // 다만, verify를 통해 호출되지 않았음을 명시적으로 확인할 수 있다.
 
         mockMvc.perform(put("/api/boards/{id}", pathId)
-            .with(user("initialUserId")) // 로그인한 사용자 정보 (initialUserId를 `author`로 사용)
+            .with(user("initialUserId"))
             .with(csrf())               // CSRF 토큰 추가 (PUT 요청이므로 필수)
             .contentType(MediaType.APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(updateRequest)))
             .andExpect(status().isBadRequest) // 400 Bad Request 반환 검증
             .andExpect(content().string("잘못된 요청입니다: ID in path ($pathId) must match ID in request body ($bodyId)"))
 
-        verify(boardService, never()).updateBoard(anyLong(), anyString(), anyString(), anyOrNull())
+        verify(boardService, never()).updateBoard(mockitoAny<UpdateBoardRequest>(), anyString())
+    }
+
+    @Test
+    fun `getCategories - 활성 카테고리 목록을 200 OK로 반환한다`() {
+        // given: 백오피스에서 관리하는 노출 순서대로 반환
+        val expectedCategories = listOf("같이타", "개발", "기타")
+        given(boardService.getCategories()).willReturn(expectedCategories)
+
+        // then: "categories"가 Long id로 바인딩되며 500이 나지 않고 리터럴 경로가 먼저 매칭돼야 한다
+        mockMvc.perform(get("/api/boards/categories")
+            .contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.length()").value(expectedCategories.size))
+            .andExpect(jsonPath("$[0]").value("같이타"))
+            .andExpect(jsonPath("$[2]").value("기타"))
+
+        verify(boardService, times(1)).getCategories()
+        verify(boardService, never()).getBoardDetail(anyLong())
     }
 }

@@ -63,9 +63,9 @@ class AccountController (
      */
     @PostMapping("/find-password/reset-password")
     fun resetPassword(@RequestBody request: ResetPasswordRequest): ResponseEntity<ApiResponse<Unit>> {
-        if (request.newPassword.length < 8 || !request.newPassword.contains(Regex("[a-zA-Z]")) ||
-            !request.newPassword.contains(Regex("[0-9]")) || !request.newPassword.contains(Regex("[!@#\$%^&*()]"))) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("비밀번호는 8자 이상이며, 영문, 숫자, 특수문자를 포함해야 합니다."))
+        // 회원가입(AuthController.registerUser)과 동일한 기준을 적용한다.
+        if (request.newPassword.length < 4) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("비밀번호는 4자리 이상이어야 합니다."))
         }
 
         return try {

@@ -37,18 +37,46 @@ class AuthController(
 ) {
     companion object {
         private val log = KotlinLogging.logger {} // 클래스 레벨에서 로거를 초기화합니다.
+        private val USER_ID_PATTERN = Regex("^[a-zA-Z0-9._-]{4,20}$")
+        private val EMAIL_PATTERN = Regex("^[a-zA-Z0-9_!#$%&'*+/=?`{|}~^.-]+@[a-zA-Z0-9.-]+$")
     }
 
     @PostMapping("/register")
     fun registerUser(@RequestBody request: RegistUserRequest): ResponseEntity<String> {
-        if (userRepository.findByUserId(request.userId) != null) {
-            return ResponseEntity.badRequest().body("User ID already taken!")
+        val userId = request.userId.trim()
+        val email = request.email.trim()
+
+        if (userId.isEmpty()) {
+            return ResponseEntity.badRequest().body("아이디를 입력해주세요.")
+        }
+        // "kakao_" 접두사는 카카오 로그인 계정 식별용으로 예약 (KakaoOAuthService.loginOrRegister 참고)
+        if (userId.lowercase().startsWith("kakao_")) {
+            return ResponseEntity.badRequest().body("'kakao_'로 시작하는 아이디는 사용할 수 없습니다.")
+        }
+        if (!USER_ID_PATTERN.matches(userId)) {
+            return ResponseEntity.badRequest()
+                .body("아이디는 4~20자의 영문, 숫자, 점(.), 밑줄(_), 하이픈(-)만 사용할 수 있습니다.")
+        }
+        if (email.isEmpty()) {
+            return ResponseEntity.badRequest().body("이메일을 입력해주세요.")
+        }
+        if (!EMAIL_PATTERN.matches(email)) {
+            return ResponseEntity.badRequest().body("올바른 이메일 형식이 아닙니다.")
+        }
+        if (request.name.isBlank()) {
+            return ResponseEntity.badRequest().body("이름을 입력해주세요.")
+        }
+        if (request.password.length < 4) {
+            return ResponseEntity.badRequest().body("비밀번호는 4자리 이상이어야 합니다.")
+        }
+        if (userRepository.findByUserId(userId) != null) {
+            return ResponseEntity.badRequest().body("이미 사용 중인 아이디입니다.")
         }
 
         val newUsers = Users(
-            userId = request.userId,
-            email = request.email,
-            name = request.name,
+            userId = userId,
+            email = email,
+            name = request.name.trim(),
             rawPassword = passwordEncoder.encode(request.password)
         )
         userRepository.save(newUsers)

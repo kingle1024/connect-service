@@ -47,11 +47,19 @@ class SecurityConfig(
                     // sendError() 는 /error 로 재디스패치되는데, 여기가 막혀 있으면
                     // 400/404 를 보내도 클라이언트에는 전부 403 으로 보인다
                     .requestMatchers("/error").permitAll()
+                    // 백오피스 정적 화면. 화면 자체는 공개이고, 실제 데이터는 아래 /api/admin/** 규칙이 지킨다.
+                    .requestMatchers("/admin", "/admin/", "/admin/**", "/favicon.ico").permitAll()
+                    // 백오피스 로그인은 토큰 없이 호출해야 하므로 허용 (컨트롤러에서 ROLE_ADMIN 여부를 검사)
+                    .requestMatchers("/api/admin/auth/login").permitAll()
+                    // 그 외 모든 백오피스 API 는 관리자만 (ROLE_ADMIN)
+                    .requestMatchers("/api/admin/**").hasRole("ADMIN")
                     .requestMatchers("/api/auth/**").permitAll() // 로그인, 회원가입 등 인증 관련 경로는 모두 허용
                     .requestMatchers("/api/public/**").permitAll() // 공개 API 경로
                     .requestMatchers("/api/boards/**").permitAll() // 게시판 API 경로
                     // 비밀번호 찾기/더존 인증/날짜 알림 등 계정 관련 경로 허용 (CORS preflight 통과 + 컨트롤러에서 자체 인증 검사)
                     .requestMatchers("/api/account/**").permitAll()
+                    // 개선/버그 요청(문의) 경로 허용 (CORS preflight 통과 + 컨트롤러에서 로그인 여부 검사)
+                    .requestMatchers("/api/inquiries/**").permitAll()
                     // 채팅/친구/웹소켓 경로 허용 (웹에서 CORS preflight 통과 - JWT 는 필터에서 처리)
                     .requestMatchers("/api/chat/**").permitAll()
                     .requestMatchers("/api/friends/**").permitAll()

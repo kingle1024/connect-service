@@ -3,6 +3,7 @@ package com.connect.service.board
 import com.connect.service.board.entity.BoardMst
 import com.connect.service.board.repository.BoardRepository
 import com.connect.service.board.service.BoardService
+import com.connect.service.category.service.CategoryService
 import com.connect.service.user.repository.UserRepository
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -28,6 +29,10 @@ class BoardAuthorServiceTest {
 
     @Mock
     private lateinit var userRepository: UserRepository
+
+    // 작성자별 조회 자체는 카테고리를 쓰지 않지만, BoardService 생성자 주입 대상이라 목이 필요하다.
+    @Mock
+    private lateinit var categoryService: CategoryService
 
     @InjectMocks
     private lateinit var boardService: BoardService

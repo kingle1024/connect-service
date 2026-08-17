@@ -1,0 +1,407 @@
+:root {
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --border: #dfe3e8;
+  --text: #1f2430;
+  --text-muted: #6b7280;
+  --primary: #2f6bff;
+  --primary-dark: #1e4fd0;
+  --danger: #d64545;
+  --success: #17795e;
+  --topbar: #1f2430;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", "Malgun Gothic", -apple-system, sans-serif;
+  font-size: 14px;
+}
+
+.hidden { display: none !important; }
+
+/* ---------- 로그인 ---------- */
+.login-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 360px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 32px 28px;
+  box-shadow: 0 6px 24px rgba(31, 36, 48, 0.08);
+}
+
+.login-card h1 {
+  margin: 0 0 6px;
+  font-size: 20px;
+}
+
+.login-desc {
+  margin: 0 0 22px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* ---------- 레이아웃 ---------- */
+.topbar {
+  height: 52px;
+  background: var(--topbar);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+}
+
+.topbar-title { font-weight: 600; }
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.topbar-user { font-size: 13px; color: #c9cdd6; }
+
+.layout {
+  display: flex;
+  min-height: calc(100vh - 52px);
+  align-items: stretch;
+}
+
+.sidebar {
+  width: 190px;
+  flex: 0 0 190px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 16px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.nav-item {
+  border: 0;
+  background: none;
+  text-align: left;
+  padding: 11px 20px;
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  font-family: inherit;
+}
+
+.nav-item:hover { background: #f0f2f5; }
+
+/* 미답변 문의 건수 배지 */
+.nav-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.nav-item.active {
+  color: var(--primary);
+  border-left-color: var(--primary);
+  background: #eef3ff;
+  font-weight: 600;
+}
+
+.content {
+  flex: 1;
+  padding: 24px 28px 48px;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.panel-head { margin-bottom: 18px; }
+.panel-head h2 { margin: 0 0 6px; font-size: 18px; }
+.panel-desc { margin: 0; color: var(--text-muted); font-size: 13px; }
+
+/* ---------- 폼 ---------- */
+label {
+  display: block;
+  margin: 12px 0 5px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+input[type="text"], input[type="password"], input[type="number"],
+input[type="datetime-local"], select, textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  background: #fff;
+  color: var(--text);
+}
+
+textarea { resize: vertical; }
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(47, 107, 255, 0.14);
+}
+
+.inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+  align-items: center;
+}
+
+.inline-form input[type="text"] { width: 240px; }
+.inline-form input[type="number"] { width: 110px; }
+.inline-form select { width: 160px; }
+
+.field-row {
+  display: flex;
+  gap: 12px;
+}
+
+.field-row > div { flex: 1; min-width: 0; }
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 400;
+  margin: 10px 0 0;
+}
+
+.checkbox input { width: auto; }
+
+.form-error {
+  color: var(--danger);
+  font-size: 13px;
+  min-height: 18px;
+  margin: 10px 0 0;
+}
+
+/* ---------- 버튼 ---------- */
+.btn {
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  background: #eceff3;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.btn:hover { filter: brightness(0.96); }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-dark); }
+
+.btn-danger { background: #fdeded; color: var(--danger); border-color: #f5c9c9; }
+
+.btn-ghost { background: transparent; border-color: var(--border); color: inherit; }
+.topbar .btn-ghost { color: #fff; border-color: #4a5060; }
+
+.btn-block { width: 100%; margin-top: 20px; }
+
+.btn-sm { padding: 5px 9px; font-size: 12px; }
+
+/* ---------- 표 ---------- */
+.grid {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.grid th, .grid td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.grid th {
+  background: #f7f8fa;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.grid tbody tr:last-child td { border-bottom: 0; }
+.grid tbody tr:hover { background: #fafbfc; }
+
+/*
+ * 버튼 묶음은 반드시 td 안의 div 에서 flex 로 배치한다.
+ * td 자체에 display:flex 를 주면 table-cell 이 아니게 되어 열 너비와 행 구분선이 어긋난다.
+ */
+.grid td .actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* 드래그 손잡이 */
+.grid td.drag-handle {
+  cursor: grab;
+  color: var(--text-muted);
+  text-align: center;
+  user-select: none;
+  font-size: 15px;
+  letter-spacing: -1px;
+}
+
+.grid td.drag-handle:active { cursor: grabbing; }
+
+.grid tr.dragging {
+  opacity: 0.5;
+  background: #eef3ff;
+}
+
+.grid tr.drag-over-target td { border-bottom-color: var(--primary); }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.cell-title {
+  max-width: 380px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.empty-row {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 28px 12px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 12px;
+  background: #eceff3;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.badge-on { background: #e4f5ee; color: var(--success); }
+.badge-off { background: #fdeded; color: var(--danger); }
+.badge-admin { background: #eef3ff; color: var(--primary-dark); }
+/* 문의 상태 */
+.badge-wait { background: #fef3c7; color: #92400e; }
+.badge-progress { background: #eef3ff; color: var(--primary-dark); }
+
+.role-list { display: flex; gap: 4px; flex-wrap: wrap; }
+
+/* 답변 모달에서 원문 문의 내용을 그대로 보여주는 영역 */
+.readonly-box {
+  background: #f7f8fa;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+/* ---------- 페이지네이션 ---------- */
+.pager {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.pager .page-info {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-right: 6px;
+}
+
+/* ---------- 모달 ---------- */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(31, 36, 48, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 50;
+}
+
+.modal-card {
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 24px;
+  width: 100%;
+  max-width: 620px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-card-sm { max-width: 400px; }
+.modal-card h3 { margin: 0 0 4px; font-size: 17px; }
+.modal-target { color: var(--text-muted); font-size: 13px; margin: 0 0 8px; }
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+/* ---------- 토스트 ---------- */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--topbar);
+  color: #fff;
+  padding: 11px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  z-index: 100;
+  max-width: 80vw;
+  box-shadow: 0 6px 20px rgba(31, 36, 48, 0.25);
+}
+
+.toast.toast-error { background: var(--danger); }
