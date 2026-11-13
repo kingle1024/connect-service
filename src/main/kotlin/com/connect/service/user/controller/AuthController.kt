@@ -44,7 +44,7 @@ class AuthController(
     @PostMapping("/register")
     fun registerUser(@RequestBody request: RegistUserRequest): ResponseEntity<String> {
         val userId = request.userId.trim()
-        val email = request.email.trim()
+        val email = request.email?.trim().orEmpty()
 
         if (userId.isEmpty()) {
             return ResponseEntity.badRequest().body("아이디를 입력해주세요.")
@@ -57,10 +57,9 @@ class AuthController(
             return ResponseEntity.badRequest()
                 .body("아이디는 4~20자의 영문, 숫자, 점(.), 밑줄(_), 하이픈(-)만 사용할 수 있습니다.")
         }
-        if (email.isEmpty()) {
-            return ResponseEntity.badRequest().body("이메일을 입력해주세요.")
-        }
-        if (!EMAIL_PATTERN.matches(email)) {
+        // 이메일은 선택. 비워 두면 빈 값으로 저장하고, 마이페이지 더존 이메일 인증 때 채워진다.
+        // (email 컬럼이 NOT NULL 이라 null 대신 "" 를 쓴다. 알림 기능은 인증 사용자만 쓰므로 빈 값으로 발송될 일이 없다)
+        if (email.isNotEmpty() && !EMAIL_PATTERN.matches(email)) {
             return ResponseEntity.badRequest().body("올바른 이메일 형식이 아닙니다.")
         }
         if (request.name.isBlank()) {
