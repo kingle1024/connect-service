@@ -111,15 +111,16 @@ class BoardService(
     }
 
     @Transactional
-    fun createBoard(request: BoardCreateRequest, requestUserId: String? = null): BoardMst {
-        // 로그인 상태라면 작성자 정보는 토큰 기준으로 채운다. 요청 본문 값으로 위조할 수 없다.
-        val author = requestUserId?.let { userRepository.findByUserId(it) }
+    fun createBoard(request: BoardCreateRequest, requestUserId: String): BoardMst {
+        // 작성자 정보는 인증(로그인 토큰 또는 게스트 쿠키) 기준으로 채운다. 요청 본문 값으로 위조할 수 없다.
+        val author = userRepository.findByUserId(requestUserId)
+            ?: throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "작성자를 확인할 수 없습니다.")
         val newBoardMst = BoardMst(
             title = request.title,
             content = request.content,
             category = request.category,
-            userId = author?.userId ?: request.userId,
-            userName = author?.name ?: request.userName,
+            userId = author.userId,
+            userName = author.name,
             deadlineDts = request.deadlineDts,
             destination = request.destination,
             maxCapacity = request.maxCapacity,

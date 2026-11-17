@@ -1,6 +1,9 @@
 package com.connect.service.common.security
 
+import com.connect.service.common.guest.GuestCookieAuthenticationFilter
+import com.connect.service.common.guest.GuestCookieManager
 import com.connect.service.common.jwt.JwtAuthenticationFilter
+import org.springframework.security.core.userdetails.UserDetailsService
 import com.connect.service.common.jwt.JwtTokenProvider
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -18,7 +21,9 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 @EnableWebSecurity
 class SecurityConfig(
-    private val jwtTokenProvider: JwtTokenProvider
+    private val jwtTokenProvider: JwtTokenProvider,
+    private val guestCookieManager: GuestCookieManager,
+    private val userDetailsService: UserDetailsService,
 ) {
 
     // 비밀번호 암호화에 사용할 PasswordEncoder 빈 등록
@@ -74,6 +79,11 @@ class SecurityConfig(
             }
             // JWT 필터를 UsernamePasswordAuthenticationFilter 이전에 추가
             .addFilterBefore(JwtAuthenticationFilter(jwtTokenProvider), UsernamePasswordAuthenticationFilter::class.java)
+            // 로그인 토큰이 없을 때만 게스트 쿠키로 인증한다 (JWT 필터 다음에 실행)
+            .addFilterAfter(
+                GuestCookieAuthenticationFilter(guestCookieManager, userDetailsService),
+                JwtAuthenticationFilter::class.java
+            )
 
         return http.build()
     }

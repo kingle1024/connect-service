@@ -54,8 +54,17 @@ class BoardController(private val boardService: BoardService) {
     fun createBoard(
         @RequestBody request: BoardCreateRequest,
         authentication: Authentication?
-    ): BoardMst {
-        return boardService.createBoard(request, authentication?.name)
+    ): ResponseEntity<Any> {
+        // 회원은 로그인 토큰, 비회원은 게스트 쿠키로 인증된다. 둘 다 없으면 작성자를 알 수 없다.
+        // (예전에는 요청 본문의 userId 를 그대로 믿어서 다른 사람 이름으로 글을 쓸 수 있었다)
+        if (authentication == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(mapOf(
+                "status" to HttpStatus.UNAUTHORIZED.value(),
+                "message" to "작성자를 확인할 수 없습니다. 다시 시도해주세요.",
+                "code" to "AUTHENTICATION_REQUIRED"
+            ))
+        }
+        return ResponseEntity.ok(boardService.createBoard(request, authentication.name))
     }
 
     @PreAuthorize("isAuthenticated()")

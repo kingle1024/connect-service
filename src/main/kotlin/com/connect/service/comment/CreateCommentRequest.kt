@@ -3,8 +3,8 @@ package com.connect.service.comment
 import java.time.LocalDateTime
 
 data class CreateCommentRequest(
-    val userId: String,      // 댓글 작성자 ID
-    val userName: String,    // 댓글 작성자 이름
+    val userId: String = "",      // 무시됨: 작성자는 인증(로그인 토큰/게스트 쿠키)으로 정한다
+    val userName: String = "",    // 무시됨: 작성자 이름도 서버의 계정 정보로 채운다
     val title: String?,      // 최상위 댓글의 제목 (대댓글인 경우 null)
     val content: String,     // 댓글 내용
     val parentId: Int?       // 대댓글인 경우 부모 댓글의 ID, 최상위 댓글인 경우 null

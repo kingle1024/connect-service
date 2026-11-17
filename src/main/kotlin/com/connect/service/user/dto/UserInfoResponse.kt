@@ -5,5 +5,6 @@ data class UserInfoResponse(
     val email: String,
     val name: String,
     val profileUrl: String? = null, // 프로필 URL은 없을 수도 있으므로 nullable
-    val verified: Boolean = false // 더존 이메일 인증 완료 여부
+    val verified: Boolean = false, // 더존 이메일 인증 완료 여부
+    val guest: Boolean = false // 로그인하지 않은 게스트 계정 여부 (쿠키로 식별)
 )

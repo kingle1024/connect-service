@@ -17,6 +17,11 @@ import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.* // Mockito-Kotlin 라이브러리 사용 시 간편한 문법을 위해 import
 import java.time.LocalDateTime
 import java.util.Optional
+import com.connect.service.user.domain.UserRole
+import com.connect.service.user.domain.Users
+import com.connect.service.user.repository.UserRepository
+import org.springframework.http.HttpStatus
+import org.springframework.web.server.ResponseStatusException
 import kotlin.test.assertEquals
 
 @ExtendWith(MockitoExtension::class)
@@ -35,6 +40,9 @@ class CommentServiceTest {
     private lateinit var replyRepository: ReplyRepository
 
     // Mock 객체들을 주입받아 테스트할 서비스 인스턴스 생성 (Mockito)
+    @Mock
+    private lateinit var userRepository: UserRepository
+
     @InjectMocks
     private lateinit var commentService: CommentService
 
@@ -99,7 +107,7 @@ class CommentServiceTest {
         `when`(replyRepository.findByPostIdAndId(boardId, replyId)).thenReturn(Optional.of(mockReply))
 
         // When (실제 메소드 호출)
-        commentService.deleteComment(boardId, replyId)
+        commentService.deleteComment(boardId, replyId, "testUser")
 
         // Then (결과 검증)
         // 1. findByPostIdAndId 메소드가 정확히 boardId와 replyId로 한 번 호출되었는지 검증
@@ -122,7 +130,7 @@ class CommentServiceTest {
         // When & Then (예외 발생 검증)
         // commentService.deleteComment 호출 시, IllegalArgumentException이 발생하는지 확인
         val exception = assertThrows(IllegalArgumentException::class.java) {
-            commentService.deleteComment(boardId, replyId)
+            commentService.deleteComment(boardId, replyId, "testUser")
         }
 
         // 예외 메시지가 예상과 일치하는지 확인
@@ -134,5 +142,41 @@ class CommentServiceTest {
         verify(replyRepository, never()).delete(any())
         // 다른 Mocked 메소드는 호출되지 않았는지 검증
         verifyNoMoreInteractions(replyRepository)
+    }
+
+    @Test
+    fun `댓글 삭제_실패_작성자가_아니면_403`() {
+        val replyId = 102
+        val othersReply = ReplyEntity(
+            id = replyId, postId = boardId, userId = "owner", userName = "주인",
+            title = null, content = "남의 댓글", insertDts = LocalDateTime.now(), parentReplyId = null
+        )
+        `when`(replyRepository.findByPostIdAndId(boardId, replyId)).thenReturn(Optional.of(othersReply))
+
+        val exception = assertThrows(ResponseStatusException::class.java) {
+            commentService.deleteComment(boardId, replyId, "guest_intruder")
+        }
+
+        assertEquals(HttpStatus.FORBIDDEN, exception.statusCode)
+        verify(replyRepository, never()).delete(any())
+    }
+
+    @Test
+    fun `댓글 작성_작성자는_요청_본문이_아니라_인증된_계정으로_정한다`() {
+        `when`(boardRepository.findById(boardId)).thenReturn(Optional.of(board))
+        val guest = Users(
+            userId = "guest_abc123def456", email = "", name = "용감한 판다 42", rawPassword = "x",
+            roles = mutableSetOf(UserRole.ROLE_GUEST)
+        )
+        `when`(userRepository.findByUserId(guest.userId)).thenReturn(guest)
+        whenever(replyRepository.save(any<ReplyEntity>())).thenAnswer { it.arguments[0] as ReplyEntity }
+
+        val request = CreateCommentRequest(
+            userId = "someone_else", userName = "사칭", title = "", content = "안녕하세요", parentId = null
+        )
+        val saved = commentService.createComment(boardId, request, guest.userId)
+
+        assertEquals(guest.userId, saved.userId)
+        assertEquals("용감한 판다 42", saved.userName)
     }
 }

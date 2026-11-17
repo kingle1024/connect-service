@@ -53,6 +53,10 @@ class AuthController(
         if (userId.lowercase().startsWith("kakao_")) {
             return ResponseEntity.badRequest().body("'kakao_'로 시작하는 아이디는 사용할 수 없습니다.")
         }
+        // "guest_" 접두사는 비로그인 게스트 계정용으로 예약 (GuestService 참고)
+        if (userId.lowercase().startsWith("guest_")) {
+            return ResponseEntity.badRequest().body("'guest_'로 시작하는 아이디는 사용할 수 없습니다.")
+        }
         if (!USER_ID_PATTERN.matches(userId)) {
             return ResponseEntity.badRequest()
                 .body("아이디는 4~20자의 영문, 숫자, 점(.), 밑줄(_), 하이픈(-)만 사용할 수 있습니다.")
