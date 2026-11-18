@@ -70,13 +70,11 @@ class ChatWebSocketController (
                 ChatMessageDto(null, MessageType.JOIN, roomId, userId, "${userId}님이 입장했습니다.")
             )
         } else {
-            // 이미 방에 있는 경우 or 서비스 로직 상 추가 불가능한 경우 처리
-            // 여기서는 이미 존재하는 경우 "이미 입장했습니다." 메시지를 보내도록 예시
-            messagingTemplate.convertAndSendToUser(
-                userId,
-                "/queue/errors",
-                "이미 방 ${roomId}에 입장해 있습니다."
-            )
+            // 이미 참여 중인 방에 다시 들어온 것. 채팅방을 열 때마다 addUser 가 오므로 정상 흐름이다.
+            // 예전에는 여기서 "/queue/errors" 로 오류를 보냈는데, 웹소켓에 인증 주체가 없어 아무도 받지 못했다.
+            // 게스트 쿠키가 핸드셰이크를 인증하면서 게스트에게는 이 메시지가 전달돼, 방을 열 때마다
+            // "이미 방에 입장해 있습니다" 오류 팝업이 떴다. 오류가 아니므로 보내지 않는다.
+            println("이미 참여 중인 방 재입장 - 방: $roomId, 유저: $userId")
         }
     }
 
