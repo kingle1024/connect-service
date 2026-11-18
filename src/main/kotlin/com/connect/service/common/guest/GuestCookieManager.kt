@@ -38,10 +38,18 @@ class GuestCookieManager(
     companion object {
         private const val TYPE_CLAIM = "typ"
         private const val GUEST_TYPE = "guest"
+        // 쿠키가 막힌 브라우저(Safari/iOS 등)용 대체 전달 경로
+        const val HEADER_NAME = "X-Guest-Token"
     }
 
-    /** 응답에 게스트 쿠키를 심는다. */
-    fun write(response: HttpServletResponse, guestUserId: String) {
+    /**
+     * 응답에 게스트 쿠키를 심고, 같은 토큰을 돌려준다.
+     *
+     * Safari/iOS 는 다른 사이트(vercel → cloudtype)로 가는 쿠키를 막는다(ITP).
+     * 그래서 앱이 이 토큰을 자기 저장소(같은 사이트라 막히지 않음)에 보관했다가
+     * 쿠키가 안 실리는 환경에서는 X-Guest-Token 헤더로 보낸다. 서명은 같으니 위조할 수 없다.
+     */
+    fun write(response: HttpServletResponse, guestUserId: String): String {
         val now = Date()
         val maxAge = Duration.ofDays(maxAgeDays)
         val token = Jwts.builder()
@@ -60,11 +68,19 @@ class GuestCookieManager(
             .maxAge(maxAge)
             .build()
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString())
+        return token
     }
 
-    /** 요청의 게스트 쿠키에서 게스트 userId 를 꺼낸다. 없거나 위조·만료면 null. */
+    /**
+     * 요청에서 게스트 userId 를 꺼낸다. 쿠키를 먼저 보고, 쿠키가 없거나 무효면 X-Guest-Token 헤더를 본다.
+     * 둘 다 없거나 위조·만료면 null.
+     */
     fun readGuestUserId(request: HttpServletRequest): String? {
-        val token = request.cookies?.firstOrNull { it.name == cookieName }?.value ?: return null
+        val fromCookie = request.cookies?.firstOrNull { it.name == cookieName }?.value?.let { parse(it) }
+        return fromCookie ?: request.getHeader(HEADER_NAME)?.takeIf { it.isNotBlank() }?.let { parse(it.trim()) }
+    }
+
+    private fun parse(token: String): String? {
         return try {
             val claims = Jwts.parserBuilder().setSigningKey(secretKey).build().parseClaimsJws(token).body
             if (claims[TYPE_CLAIM] != GUEST_TYPE) null else claims.subject
