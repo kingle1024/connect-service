@@ -16,11 +16,12 @@ data class BoardResponseDto(
     val destination: String, // 목적지
     val maxCapacity: Int, // 최대 모집 인원
     val currentParticipants: Int, // 모집 인원
-    val verified: Boolean = false // 작성자의 더존 이메일 인증 여부 (인증 마크 표시용)
+    val verified: Boolean = false, // 작성자의 더존 이메일 인증 여부 (인증 마크 표시용)
+    val joined: Boolean = false // 요청한 사람이 이 모집에 참여했는지 (상세 조회/참여/취소 응답에서만 채운다)
 ) {
     // BoardMst 엔티티를 BoardResponseDto로 변환하는 팩토리 메서드
     companion object {
-        fun from(boardMst: BoardMst, verified: Boolean = false): BoardResponseDto {
+        fun from(boardMst: BoardMst, verified: Boolean = false, joined: Boolean = false): BoardResponseDto {
             return BoardResponseDto(
                 id = boardMst.id ?: throw IllegalArgumentException("Board ID cannot be null"), // id는 null이 아님을 가정
                 title = boardMst.title,
@@ -34,7 +35,8 @@ data class BoardResponseDto(
                 destination = boardMst.destination,
                 maxCapacity = boardMst.maxCapacity,
                 currentParticipants = boardMst.currentParticipants,
-                verified = verified
+                verified = verified,
+                joined = joined
             )
         }
     }

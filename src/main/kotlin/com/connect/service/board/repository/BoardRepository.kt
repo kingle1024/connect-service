@@ -1,7 +1,9 @@
 package com.connect.service.board.repository
 
 import com.connect.service.board.entity.BoardMst
+import jakarta.persistence.LockModeType
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Lock
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
@@ -12,6 +14,11 @@ import org.springframework.data.domain.Pageable
 @Repository
 interface BoardRepository : JpaRepository<BoardMst, Long>, BoardRepositoryCustom {
     // 모집 탭 목록/검색은 BoardRepositoryCustom.searchBoards 를 사용한다
+
+    // 참여/취소 시 정원 확인과 인원 증감을 한 번에 하려고 글 행을 잠근다 (동시에 눌러도 정원 초과 방지)
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT b FROM BoardMst b WHERE b.id = :id")
+    fun findByIdForUpdate(@Param("id") id: Long): BoardMst?
 
     // 필터 칩에 노출할 카테고리 목록. 직접입력 카테고리도 있으므로 실제 데이터에서 뽑는다.
     @Query("SELECT DISTINCT b.category FROM BoardMst b WHERE b.isDeleted = false ORDER BY b.category ASC")

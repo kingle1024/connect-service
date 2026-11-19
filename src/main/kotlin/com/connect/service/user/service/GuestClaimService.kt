@@ -64,6 +64,26 @@ class GuestClaimService(
         val g = guest.userId
         val m = member.userId
 
+        // 모집 참여: 옮기면 한 사람이 같은 글에 두 번 세어지는 경우(회원도 이미 참여했거나, 회원/게스트가
+        // 그 글의 작성자인 경우)는 중복 참여 한 줄을 지우고 인원을 1 줄인다. 글 작성자 이전(아래)보다 먼저 해야 한다.
+        @Suppress("UNCHECKED_CAST")
+        val duplicates = entityManager.createNativeQuery(
+            """
+            SELECT p.id, p.board_id FROM board_participant p JOIN board_mst b ON b.id = p.board_id
+            WHERE (p.user_id = :g AND (b.user_id = :m OR EXISTS (
+                      SELECT 1 FROM board_participant mp WHERE mp.board_id = p.board_id AND mp.user_id = :m)))
+               OR (p.user_id = :m AND b.user_id = :g)
+            """.trimIndent()
+        ).setParameter("g", g).setParameter("m", m).resultList as List<Array<Any>>
+        for (row in duplicates) {
+            entityManager.createNativeQuery(
+                "UPDATE board_mst SET current_participants = GREATEST(current_participants - 1, 1) WHERE id = :b"
+            ).setParameter("b", (row[1] as Number).toLong()).executeUpdate()
+            entityManager.createNativeQuery("DELETE FROM board_participant WHERE id = :id")
+                .setParameter("id", (row[0] as Number).toLong()).executeUpdate()
+        }
+        update("UPDATE board_participant SET user_id = :m, user_name = :name WHERE user_id = :g", g, m, member.name)
+
         // 글·댓글: 작성자 아이디와 표시 이름을 회원 것으로
         update("UPDATE board_mst SET user_id = :m, user_name = :name WHERE user_id = :g", g, m, member.name)
         update("UPDATE reply SET user_id = :m, user_name = :name WHERE user_id = :g", g, m, member.name)

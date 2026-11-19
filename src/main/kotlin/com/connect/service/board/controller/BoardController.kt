@@ -3,6 +3,8 @@ package com.connect.service.board.controller
 import com.connect.service.board.dto.BoardCreateRequest
 import com.connect.service.board.dto.PaginatedBoardResponse
 import com.connect.service.board.service.BoardService
+import com.connect.service.board.service.BoardParticipantService
+import com.connect.service.board.dto.BoardParticipantDto
 import com.connect.service.board.dto.UpdateBoardRequest
 import com.connect.service.board.entity.BoardMst
 import org.springframework.data.web.PageableDefault
@@ -16,7 +18,10 @@ import org.springframework.security.core.Authentication
 
 @RestController
 @RequestMapping("/api/boards")
-class BoardController(private val boardService: BoardService) {
+class BoardController(
+    private val boardService: BoardService,
+    private val participantService: BoardParticipantService,
+) {
 
     @GetMapping
     fun getBoards(
@@ -88,12 +93,44 @@ class BoardController(private val boardService: BoardService) {
         return ResponseEntity.ok(boardService.updateBoard(request, authentication.name))
     }
 
+    // 로그인(또는 게스트 쿠키) 상태면 내가 참여했는지(joined)도 함께 내려준다
     @GetMapping("/{id}")
-    fun getBoardDetail(@PathVariable id: Long): ResponseEntity<com.connect.service.board.dto.BoardResponseDto> {
+    fun getBoardDetail(
+        @PathVariable id: Long,
+        authentication: Authentication?
+    ): ResponseEntity<com.connect.service.board.dto.BoardResponseDto> {
         val detail = boardService.getBoardDetail(id)
             ?: return ResponseEntity.notFound().build()
-        return ResponseEntity.ok(detail)
+        val joined = participantService.isJoined(id, authentication?.name)
+        return ResponseEntity.ok(detail.copy(joined = joined))
     }
+
+    // 모집 참여. 회원은 로그인 토큰, 비회원은 게스트 쿠키로 참여자를 확인한다.
+    @PostMapping("/{id}/participants")
+    fun joinBoard(@PathVariable id: Long, authentication: Authentication?): ResponseEntity<Any> {
+        if (authentication == null) return actorRequired()
+        return ResponseEntity.ok(participantService.join(id, authentication.name))
+    }
+
+    // 참여 취소
+    @DeleteMapping("/{id}/participants")
+    fun leaveBoard(@PathVariable id: Long, authentication: Authentication?): ResponseEntity<Any> {
+        if (authentication == null) return actorRequired()
+        return ResponseEntity.ok(participantService.leave(id, authentication.name))
+    }
+
+    // 참여자 목록 (작성자 제외, 참여 순)
+    @GetMapping("/{id}/participants")
+    fun getParticipants(@PathVariable id: Long): ResponseEntity<List<BoardParticipantDto>> {
+        return ResponseEntity.ok(participantService.participants(id))
+    }
+
+    private fun actorRequired(): ResponseEntity<Any> =
+        ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(mapOf(
+            "status" to HttpStatus.UNAUTHORIZED.value(),
+            "message" to "참여자를 확인할 수 없습니다. 다시 시도해주세요.",
+            "code" to "AUTHENTICATION_REQUIRED"
+        ))
 
     @PreAuthorize("isAuthenticated()")
     @DeleteMapping("/{id}")

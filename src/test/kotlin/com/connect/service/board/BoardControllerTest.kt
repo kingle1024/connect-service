@@ -14,6 +14,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
 import com.connect.service.board.dto.UpdateBoardRequest
 import com.connect.service.board.entity.BoardMst
 import com.connect.service.board.service.BoardService
+import com.connect.service.board.service.BoardParticipantService
 import org.springframework.http.MediaType
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
@@ -41,6 +42,9 @@ class BoardControllerTest {
 
     @MockitoBean
     private lateinit var boardService: BoardService
+
+    @MockitoBean
+    private lateinit var participantService: BoardParticipantService
     inline fun <reified T> mockitoAny(): T {
         any(T::class.java)
         return uninitialized()
