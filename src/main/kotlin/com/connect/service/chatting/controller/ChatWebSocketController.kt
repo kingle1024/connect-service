@@ -48,7 +48,15 @@ class ChatWebSocketController (
 
         println("메시지 보냄 및 저장 완료 - ID: ${savedDto.id}, 방: ${savedDto.roomId}, 발신자: ${savedDto.sender}, 내용: ${savedDto.content}, 시간: ${savedDto.insertDts}")
 
-        messagingTemplate.convertAndSend("/topic/chat/$roomId", savedDto)
+        messagingTemplate.convertAndSend("/topic/chat/$roomId", chatMessageService.withNames(ChatMessageDto(
+            id = savedDto.id.toString(),
+            type = savedDto.type,
+            roomId = savedDto.roomId,
+            sender = savedDto.sender,
+            content = savedDto.content,
+            recipient = savedDto.recipient,
+            insertDts = savedDto.insertDts,
+        )))
     }
 
     @MessageMapping("/chat.addUser")
@@ -67,7 +75,7 @@ class ChatWebSocketController (
         if (added) {
             println("유저 추가됨 - 방: $roomId, 유저: $userId, 방 이름: $roomName")
             messagingTemplate.convertAndSend("/topic/chat/$roomId",
-                ChatMessageDto(null, MessageType.JOIN, roomId, userId, "${userId}님이 입장했습니다.")
+                chatMessageService.withNames(ChatMessageDto(null, MessageType.JOIN, roomId, userId, "${userId}님이 입장했습니다.", insertDts = LocalDateTime.now()))
             )
         } else {
             // 이미 참여 중인 방에 다시 들어온 것. 채팅방을 열 때마다 addUser 가 오므로 정상 흐름이다.
@@ -128,7 +136,7 @@ class ChatWebSocketController (
 
             // 모든 방 참가자에게 누가 누구를 초대했는지 알림 (채팅방 내 시스템 메시지)
             messagingTemplate.convertAndSend("/topic/chat/$roomId",
-                ChatMessageDto(null, MessageType.INVITE, roomId, sender, recipient = recipient, roomName = "1234")
+                chatMessageService.withNames(ChatMessageDto(null, MessageType.INVITE, roomId, sender, recipient = recipient, roomName = "1234", insertDts = LocalDateTime.now()))
             )
 
             println("초대 성공: ${sender}님이 ${recipient}님을 초대했습니다. DB에 멤버십 추가 완료.")
@@ -171,7 +179,7 @@ class ChatWebSocketController (
             )
             // 모든 방 참가자에게 누가 누구를 강퇴했는지 알림
             messagingTemplate.convertAndSend("/topic/chat/$roomId",
-                ChatMessageDto(null, MessageType.KICK, roomId, sender, recipient = recipient)
+                chatMessageService.withNames(ChatMessageDto(null, MessageType.KICK, roomId, sender, recipient = recipient, insertDts = LocalDateTime.now()))
             )
         } else {
              messagingTemplate.convertAndSendToUser(
@@ -189,7 +197,7 @@ class ChatWebSocketController (
         if (removed) {
             println("유저 퇴장 - 방: $roomId, 유저: $userId")
             messagingTemplate.convertAndSend("/topic/chat/$roomId",
-                ChatMessageDto(null, MessageType.LEAVE, roomId, userId, "${userId}님이 퇴장했습니다.")
+                chatMessageService.withNames(ChatMessageDto(null, MessageType.LEAVE, roomId, userId, "${userId}님이 퇴장했습니다.", insertDts = LocalDateTime.now()))
             )
         } else {
             println("유저 ${userId}가 방 ${roomId}에서 나가지 못했습니다. (존재하지 않거나 이미 나감)")
