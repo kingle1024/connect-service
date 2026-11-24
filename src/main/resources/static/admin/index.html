@@ -47,6 +47,7 @@
       <button type="button" class="nav-item" data-tab="inquiries">
         문의 관리<span id="inquiry-badge" class="nav-badge hidden">0</span>
       </button>
+      <button type="button" class="nav-item" data-tab="settings">앱 설정</button>
     </nav>
 
     <main class="content">
@@ -78,6 +79,37 @@
           </thead>
           <tbody id="category-rows"></tbody>
         </table>
+      </section>
+
+      <!-- 앱 설정 -->
+      <section id="tab-settings" class="tab hidden">
+        <div class="panel-head">
+          <h2>앱 설정</h2>
+          <p class="panel-desc">
+            제품 색은 앱의 강조 버튼·선택된 탭·안내창 버튼 등에 쓰입니다.
+            저장하면 앱을 새로 열 때부터 바뀐 색이 적용됩니다.
+          </p>
+        </div>
+
+        <form id="theme-form" class="settings-form">
+          <label class="settings-label" for="theme-primary-picker">제품 색</label>
+          <div class="color-row">
+            <input id="theme-primary-picker" type="color" value="#ff5a2f" />
+            <input id="theme-primary-text" type="text" maxlength="7" placeholder="#FF5A2F" />
+            <span id="theme-default-note" class="muted"></span>
+          </div>
+
+          <div class="color-preview">
+            <span class="muted">미리보기</span>
+            <button type="button" id="theme-preview-btn" class="preview-btn">모집 보러 가기</button>
+            <span id="theme-preview-chip" class="preview-chip">선택된 탭</span>
+          </div>
+
+          <div class="settings-actions">
+            <button type="submit" class="btn btn-primary">저장</button>
+            <button type="button" id="theme-reset-btn" class="btn btn-ghost">기본 색으로 되돌리기</button>
+          </div>
+        </form>
       </section>
 
       <!-- 게시물 관리 -->

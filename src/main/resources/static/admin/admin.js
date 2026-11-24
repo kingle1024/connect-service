@@ -163,7 +163,7 @@
     for (var i = 0; i < buttons.length; i++) {
       buttons[i].classList.toggle('active', buttons[i].dataset.tab === tab);
     }
-    ['categories', 'boards', 'users', 'inquiries'].forEach(function (name) {
+    ['categories', 'boards', 'users', 'inquiries', 'settings'].forEach(function (name) {
       $('tab-' + name).classList.toggle('hidden', name !== tab);
     });
 
@@ -171,10 +171,77 @@
     if (tab === 'boards') { loadCategories().then(loadBoards).catch(fail); }
     if (tab === 'users') { loadUsers(); }
     if (tab === 'inquiries') { loadInquiries(); }
+    if (tab === 'settings') { loadTheme(); }
   }
 
   document.querySelectorAll('.nav-item').forEach(function (btn) {
     btn.addEventListener('click', function () { selectTab(btn.dataset.tab); });
+  });
+
+  // ---------------------------------------------------------------- 앱 설정 (제품 색)
+
+  // 앱(connect-ui theme.ts)에 내장된 기본 제품 색. 서버에 값이 없으면 앱은 이 색을 쓴다.
+  var DEFAULT_PRIMARY = '#FF5A2F';
+  var HEX = /^#[0-9A-Fa-f]{6}$/;
+
+  function normalizeHex(value) {
+    var v = (value || '').trim();
+    if (v && v.charAt(0) !== '#') { v = '#' + v; }
+    return v.toUpperCase();
+  }
+
+  function previewThemeColor(c) {
+    $('theme-preview-btn').style.background = c;
+    $('theme-preview-chip').style.color = c;
+    $('theme-preview-chip').style.borderColor = c;
+  }
+
+  function showThemeColor(color) {
+    var c = normalizeHex(color || DEFAULT_PRIMARY);
+    $('theme-primary-text').value = c;
+    $('theme-primary-picker').value = c.toLowerCase();
+    $('theme-default-note').textContent = color ? '' : '(기본 색 사용 중)';
+    previewThemeColor(c);
+  }
+
+  function loadTheme() {
+    return api('/api/admin/settings/theme')
+      .then(function (theme) { showThemeColor(theme && theme.primary); })
+      .catch(fail);
+  }
+
+  $('theme-primary-picker').addEventListener('input', function (e) {
+    var c = normalizeHex(e.target.value);
+    $('theme-primary-text').value = c;
+    previewThemeColor(c);
+  });
+  $('theme-primary-text').addEventListener('input', function (e) {
+    var c = normalizeHex(e.target.value);
+    if (HEX.test(c)) {
+      $('theme-primary-picker').value = c.toLowerCase();
+      previewThemeColor(c);
+    }
+  });
+
+  function saveTheme(primary) {
+    return api('/api/admin/settings/theme', { method: 'PUT', body: { primary: primary } })
+      .then(function (theme) {
+        showThemeColor(theme && theme.primary);
+        toast(primary ? '제품 색을 저장했습니다.' : '기본 색으로 되돌렸습니다.');
+      })
+      .catch(fail);
+  }
+
+  $('theme-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var c = normalizeHex($('theme-primary-text').value);
+    if (!HEX.test(c)) { toast('색상은 #RRGGBB 형식으로 입력해주세요.', true); return; }
+    saveTheme(c);
+  });
+
+  $('theme-reset-btn').addEventListener('click', function () {
+    if (!confirm('제품 색을 기본 색(' + DEFAULT_PRIMARY + ')으로 되돌릴까요?')) { return; }
+    saveTheme(null);
   });
 
   // ---------------------------------------------------------------- 카테고리 관리

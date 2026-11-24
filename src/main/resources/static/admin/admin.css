@@ -405,3 +405,15 @@ input:focus, select:focus, textarea:focus {
 }
 
 .toast.toast-error { background: var(--danger); }
+
+/* ---- 앱 설정 (제품 색) ---------------------------------------------------- */
+.settings-form { max-width: 520px; display: flex; flex-direction: column; gap: 16px; }
+.settings-label { font-weight: 600; }
+.color-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.color-row input[type="color"] { width: 48px; height: 38px; padding: 2px; border: 1px solid var(--border); border-radius: 8px; background: #fff; cursor: pointer; }
+.color-row input[type="text"] { width: 120px; font-family: monospace; text-transform: uppercase; }
+.color-preview { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.preview-btn { border: 0; border-radius: 8px; padding: 9px 16px; color: #fff; font-weight: 600; cursor: default; }
+.preview-chip { border: 1.5px solid; border-radius: 999px; padding: 5px 12px; font-size: 13px; font-weight: 600; background: #fff; }
+.settings-actions { display: flex; gap: 8px; }
+.muted { color: var(--text-muted); font-size: 13px; }
