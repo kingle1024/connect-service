@@ -9,6 +9,7 @@ import com.connect.service.chatting.entity.RoomMembership
 import com.connect.service.chatting.entity.RoomMembershipId
 import com.connect.service.chatting.enums.RoomType
 import com.connect.service.chatting.repository.ChatRoomRepository
+import com.connect.service.user.repository.UserRepository
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -18,7 +19,8 @@ import java.util.concurrent.ConcurrentHashMap
 @Service
 class ChatRoomService (
     private val chatRoomRepository: ChatRoomRepository,
-    private val roomMembershipRepository: RoomMembershipRepository
+    private val roomMembershipRepository: RoomMembershipRepository,
+    private val userRepository: UserRepository
 ){
     // roomId를 키로 ChatRoom 객체를 저장할 맵
     private val chatRooms: ConcurrentHashMap<String, ChatRoom> = ConcurrentHashMap()
@@ -100,12 +102,18 @@ class ChatRoomService (
 
     @Transactional(readOnly = true)
     fun getRoomsForRoomId(roomId: String): List<ChatRoomParticipantRes> {
-       return roomMembershipRepository.findByIdRoomId(roomId)
-           .map { membership ->
+       val memberships = roomMembershipRepository.findByIdRoomId(roomId)
+       // 참여자 표시 이름을 한 번에 조회한다
+       val names = userRepository.findByUserIdIn(memberships.map { it.id.userId }.distinct())
+           .filter { it.name.isNotBlank() }
+           .associate { it.userId to it.name }
+       return memberships.map { membership ->
                val chatRoom = membership.chatRoom
                ChatRoomParticipantRes(
                    roomId = chatRoom.roomId,
-                   userId = membership.id.userId
+                   userId = membership.id.userId,
+                   name = names[membership.id.userId],
+                   leader = chatRoom.leaderUserId == membership.id.userId
                )
            }.toList()
     }
