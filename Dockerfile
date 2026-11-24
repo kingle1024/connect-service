@@ -15,6 +15,7 @@ FROM eclipse-temurin:17-jre as runtime
 COPY --from=builder build/libs/*.jar app.jar
 
 ENV PROFILE ${PROFILE}
+ENV TZ=Asia/Seoul
 
 EXPOSE 8080
 
