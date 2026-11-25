@@ -7,6 +7,7 @@ import com.connect.service.chatting.enums.MessageType
 import com.connect.service.chatting.enums.RoomType
 import com.connect.service.chatting.service.ChatMessageService
 import com.connect.service.chatting.service.ChatRoomService
+import com.connect.service.chatting.repository.RoomMembershipRepository
 import com.connect.service.user.service.CustomUserDetailsService
 import org.springframework.messaging.handler.annotation.MessageMapping
 import org.springframework.messaging.handler.annotation.Payload
@@ -22,6 +23,7 @@ class ChatWebSocketController (
     private val chatRoomService: ChatRoomService,
     private val chatMessageService: ChatMessageService,
     private val userService: CustomUserDetailsService,
+    private val roomMembershipRepository: RoomMembershipRepository,
 ) {
     @MessageMapping("/chat.sendMessage")
     fun sendMessage(@Payload chatMessageDto: ChatMessageDto) {
@@ -48,7 +50,7 @@ class ChatWebSocketController (
 
         println("메시지 보냄 및 저장 완료 - ID: ${savedDto.id}, 방: ${savedDto.roomId}, 발신자: ${savedDto.sender}, 내용: ${savedDto.content}, 시간: ${savedDto.insertDts}")
 
-        messagingTemplate.convertAndSend("/topic/chat/$roomId", chatMessageService.withNames(ChatMessageDto(
+        val outgoing = chatMessageService.withNames(ChatMessageDto(
             id = savedDto.id.toString(),
             type = savedDto.type,
             roomId = savedDto.roomId,
@@ -56,7 +58,36 @@ class ChatWebSocketController (
             content = savedDto.content,
             recipient = savedDto.recipient,
             insertDts = savedDto.insertDts,
-        )))
+        ))
+        messagingTemplate.convertAndSend("/topic/chat/$roomId", outgoing)
+        notifyMembers(outgoing)
+    }
+
+    /**
+     * 방의 다른 멤버들에게 '새 메시지' 알림을 보낸다 (/topic/notify/{userId}).
+     * 앱은 채팅방 밖에 있어도 이걸 받아 브라우저 알림을 띄운다.
+     */
+    private fun notifyMembers(message: ChatMessageDto) {
+        if (message.type != MessageType.CHAT) return
+        try {
+            val room = chatRoomService.getRoom(message.roomId) ?: return
+            val members = roomMembershipRepository.findByIdRoomId(message.roomId).map { it.id.userId }
+            val payload = mapOf(
+                "roomId" to message.roomId,
+                "roomName" to room.roomName,
+                "roomType" to room.roomType,
+                "memberCount" to members.size,
+                "messageId" to message.id,
+                "sender" to message.sender,
+                "senderName" to (message.senderName ?: message.sender),
+                "content" to message.content,
+            )
+            members.filter { it != message.sender }.forEach { userId ->
+                messagingTemplate.convertAndSend("/topic/notify/$userId", payload)
+            }
+        } catch (e: Exception) {
+            println("새 메시지 알림 전송 실패 - 방: ${message.roomId}, ${e.message}")
+        }
     }
 
     @MessageMapping("/chat.addUser")
