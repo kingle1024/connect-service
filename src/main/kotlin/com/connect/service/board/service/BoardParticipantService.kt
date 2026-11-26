@@ -25,6 +25,7 @@ class BoardParticipantService(
     private val boardRepository: BoardRepository,
     private val participantRepository: BoardParticipantRepository,
     private val userRepository: UserRepository,
+    private val boardChatService: BoardChatService,
 ) {
 
     @Transactional
@@ -48,6 +49,8 @@ class BoardParticipantService(
 
         participantRepository.save(BoardParticipant(boardId = boardId, userId = userId, userName = user.name))
         board.currentParticipants += 1
+        // 참여하면 모집 채팅방에도 들어간다
+        boardChatService.addMember(board, userId)
         return toDto(boardRepository.save(board), joined = true)
     }
 
@@ -58,6 +61,8 @@ class BoardParticipantService(
             ?: throw ResponseStatusException(HttpStatus.CONFLICT, "참여하지 않은 모집이에요.")
 
         participantRepository.delete(participant)
+        // 참여를 취소하면 모집 채팅방에서도 빠진다
+        boardChatService.removeMember(board, userId)
         // 작성자 1명은 항상 남는다
         board.currentParticipants = (board.currentParticipants - 1).coerceAtLeast(1)
         return toDto(boardRepository.save(board), joined = false)

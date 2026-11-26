@@ -21,7 +21,15 @@ import org.springframework.security.core.Authentication
 class BoardController(
     private val boardService: BoardService,
     private val participantService: BoardParticipantService,
+    private val boardChatService: com.connect.service.board.service.BoardChatService,
 ) {
+
+    // 모집 채팅방 열기 (작성자·참여자만). 예전 글이라 방이 없으면 이때 만든다. → { roomId, roomName }
+    @PostMapping("/{id}/chat-room")
+    fun openChatRoom(@PathVariable id: Long, authentication: Authentication?): ResponseEntity<Any> {
+        if (authentication == null) return actorRequired()
+        return ResponseEntity.ok(boardChatService.openRoom(id, authentication.name))
+    }
 
     @GetMapping
     fun getBoards(

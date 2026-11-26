@@ -32,8 +32,9 @@ class GuestClaimService(
         val boardCount: Long = 0,
         val commentCount: Long = 0,
         val chatRoomCount: Long = 0,
+        val friendCount: Long = 0,
     ) {
-        val total: Long get() = boardCount + commentCount + chatRoomCount
+        val total: Long get() = boardCount + commentCount + chatRoomCount + friendCount
     }
 
     /** 가져올 수 있는 게스트 기록 요약. 게스트 신원이 없거나, 가져올 게 하나도 없으면 available=false. */
@@ -49,6 +50,9 @@ class GuestClaimService(
             boardCount = count("SELECT COUNT(*) FROM board_mst WHERE user_id = :g AND is_deleted = 0", guest.userId),
             commentCount = count("SELECT COUNT(*) FROM reply WHERE user_id = :g", guest.userId),
             chatRoomCount = count("SELECT COUNT(*) FROM room_memberships WHERE user_id = :g", guest.userId),
+            // 친구 + 아직 처리 안 된 친구 요청(보낸 것·받은 것)
+            friendCount = count("SELECT COUNT(*) FROM friendships WHERE user_id = :g", guest.userId) +
+                count("SELECT COUNT(*) FROM friend_requests WHERE status = 'PENDING' AND (sender_id = :g OR receiver_id = :g)", guest.userId),
         )
         return if (s.total == 0L) Summary(available = false) else s
     }
@@ -112,11 +116,56 @@ class GuestClaimService(
         update("UPDATE chat_messages SET sender = :m WHERE sender = :g", g, m)
         update("UPDATE chat_messages SET recipient = :m WHERE recipient = :g", g, m)
 
+        moveFriends(g, m)
+
         // 게스트 계정은 비활성화 → 같은 기록을 다른 계정이 또 가져갈 수 없고, 이 기기는 다음부터 새 게스트가 된다
         guest.enabled = false
         userRepository.save(guest)
 
         return before
+    }
+
+    /**
+     * 게스트일 때 맺은 친구와 친구 요청을 회원 아이디로 옮긴다.
+     * 상대방 쪽(friend_id / receiver_id)도 함께 바꿔서, 상대에게는 같은 친구가 이름만 회원 이름으로 바뀌어 보인다.
+     * 회원이 이미 같은 사람과 친구·요청 관계면 게스트 쪽 줄은 지운다 (unique: user_id+friend_id, sender_id+receiver_id).
+     */
+    private fun moveFriends(g: String, m: String) {
+        // 게스트 ↔ 회원 자신 사이의 관계는 옮기면 '나와 나'가 되므로 지운다
+        update("DELETE FROM friendships WHERE (user_id = :g AND friend_id = :m) OR (user_id = :m AND friend_id = :g)", g, m)
+        update("DELETE FROM friend_requests WHERE (sender_id = :g AND receiver_id = :m) OR (sender_id = :m AND receiver_id = :g)", g, m)
+
+        update(
+            """
+            UPDATE friendships SET user_id = :m
+            WHERE user_id = :g
+              AND friend_id NOT IN (SELECT friend_id FROM (SELECT friend_id FROM friendships WHERE user_id = :m) t)
+            """.trimIndent(), g, m
+        )
+        update(
+            """
+            UPDATE friendships SET friend_id = :m
+            WHERE friend_id = :g
+              AND user_id NOT IN (SELECT user_id FROM (SELECT user_id FROM friendships WHERE friend_id = :m) t)
+            """.trimIndent(), g, m
+        )
+        update("DELETE FROM friendships WHERE user_id = :g OR friend_id = :g", g, m)
+
+        update(
+            """
+            UPDATE friend_requests SET sender_id = :m
+            WHERE sender_id = :g
+              AND receiver_id NOT IN (SELECT receiver_id FROM (SELECT receiver_id FROM friend_requests WHERE sender_id = :m) t)
+            """.trimIndent(), g, m
+        )
+        update(
+            """
+            UPDATE friend_requests SET receiver_id = :m
+            WHERE receiver_id = :g
+              AND sender_id NOT IN (SELECT sender_id FROM (SELECT sender_id FROM friend_requests WHERE receiver_id = :m) t)
+            """.trimIndent(), g, m
+        )
+        update("DELETE FROM friend_requests WHERE sender_id = :g OR receiver_id = :g", g, m)
     }
 
     private fun requireMember(memberUserId: String) =

@@ -21,7 +21,8 @@ import org.springframework.web.server.ResponseStatusException
 class BoardService(
     private val boardRepository: BoardRepository,
     private val userRepository: UserRepository,
-    private val categoryService: CategoryService
+    private val categoryService: CategoryService,
+    private val boardChatService: BoardChatService,
 ) {
 
     // 주어진 작성자 ID들 중 더존 이메일 인증(ROLE_VERIFIED)된 사용자 ID 집합을 반환
@@ -126,7 +127,10 @@ class BoardService(
             maxCapacity = request.maxCapacity,
             currentParticipants = request.currentParticipants
         )
-        return boardRepository.save(newBoardMst)
+        val saved = boardRepository.save(newBoardMst)
+        // 모집 글마다 단체 채팅방을 만들고 작성자를 방장으로 넣는다
+        boardChatService.createRoom(saved)
+        return saved
     }
 
 

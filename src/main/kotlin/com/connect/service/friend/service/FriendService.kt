@@ -54,7 +54,8 @@ class FriendService(
 
     @Transactional
     fun processFriendRequest(currentUserId: String, requestId: String, processDto: FriendRequestProcessDto): FriendRequest {
-        val friendRequest = friendRequestRepository.findBySenderId(requestId)
+        // requestId 자리에는 보낸 사람 userId 가 온다. 보낸 사람이 여러 명에게 요청했을 수 있으니 받는 사람(나)까지 같이 찾는다.
+        val friendRequest = friendRequestRepository.findBySenderIdAndReceiverId(requestId, currentUserId)
             ?: throw IllegalArgumentException("친구 요청을 찾을 수 없습니다.")
 
         if (friendRequest.receiverId != currentUserId) {

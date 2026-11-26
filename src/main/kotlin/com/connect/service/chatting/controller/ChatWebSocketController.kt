@@ -1,5 +1,6 @@
 package com.connect.service.chatting.controller
 
+import com.connect.service.board.service.BoardChatService
 import com.connect.service.chatting.dto.ChatAddUserDto
 import com.connect.service.chatting.dto.ChatInviteUserDto
 import com.connect.service.chatting.dto.ChatMessageDto
@@ -24,7 +25,17 @@ class ChatWebSocketController (
     private val chatMessageService: ChatMessageService,
     private val userService: CustomUserDetailsService,
     private val roomMembershipRepository: RoomMembershipRepository,
+    private val boardChatService: BoardChatService,
 ) {
+    /**
+     * 방장은 방을 나갈 수 없다.
+     *  - 모집 채팅방: 글이 살아 있는 동안은 혼자 남아 있어도 못 나간다 (글을 지우면 나갈 수 있다)
+     *  - 그 밖의 방: 다른 사람이 남아 있으면 못 나간다. 혼자 남은 방은 나가면 방이 지워진다.
+     */
+    private fun leaderCannotLeave(roomId: String, userId: String): Boolean =
+        chatRoomService.isRoomLeader(roomId, userId) &&
+            (boardChatService.isActiveBoardRoom(roomId) || roomMembershipRepository.countByIdRoomId(roomId) > 1)
+
     @MessageMapping("/chat.sendMessage")
     fun sendMessage(@Payload chatMessageDto: ChatMessageDto) {
         val roomId = chatMessageDto.roomId
@@ -199,6 +210,8 @@ class ChatWebSocketController (
              return
         }
 
+        // 방장 자신은 강퇴로도 방을 나갈 수 없다
+        if (recipient == sender) return
         val removed = chatRoomService.removeParticipant(roomId, recipient!!) // DB에서 멤버십 삭제
 
         if (removed) {
@@ -223,6 +236,10 @@ class ChatWebSocketController (
         val userId = chatMessageDto.sender
         val roomId = chatMessageDto.roomId
 
+        if (leaderCannotLeave(roomId, userId)) {
+            println("방장 나가기 거절 - 방: $roomId, 유저: $userId")
+            return
+        }
         val removed = chatRoomService.removeParticipant(roomId, userId)
 
         if (removed) {
