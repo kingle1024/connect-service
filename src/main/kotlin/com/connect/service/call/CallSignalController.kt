@@ -26,6 +26,7 @@ class CallSignalController(
     private val callService: CallService,
     private val roomMembershipRepository: RoomMembershipRepository,
     private val userRepository: UserRepository,
+    private val iceServerService: IceServerService,
 ) {
     data class CallSignal(
         val type: String = "",
@@ -84,6 +85,11 @@ class CallSignalController(
     @GetMapping("/api/chat/rooms/{roomId}/call")
     @ResponseBody
     fun current(@PathVariable roomId: String): CallSignal = stateSignal("state", roomId, "")
+
+    // 통화에 쓸 STUN/TURN 서버 (TURN 은 Cloudflare 가 발급한 임시 접속 정보)
+    @GetMapping("/api/chat/call/ice-servers")
+    @ResponseBody
+    fun iceServers(): IceServerService.IceServers = iceServerService.iceServers()
 
     // 지금 통화 참가자와 그 표시 이름을 담은 신호
     private fun stateSignal(type: String, roomId: String, from: String): CallSignal {
